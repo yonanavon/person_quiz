@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>עצור וסע</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    font-family: 'Segoe UI', Arial, sans-serif;
+    background: #f0f4f8;
+    color: #1a2733;
+    min-height: 100vh;
+    padding: 16px 12px 32px;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .wrap { max-width: 560px; margin: 0 auto; }
+
+  header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 12px; gap: 8px;
+  }
+  header h1 { font-size: 20px; }
+  #btnMute {
+    border: none; background: #fff; border-radius: 10px;
+    width: 48px; height: 48px; font-size: 20px; cursor: pointer;
+    box-shadow: 0 1px 4px rgba(0,0,0,.08);
+  }
+
+  .card {
+    background: #fff; border-radius: 14px; padding: 22px 20px;
+    box-shadow: 0 1px 5px rgba(0,0,0,.08); margin-bottom: 14px;
+  }
+  .card h2 { margin-bottom: 10px; font-size: 20px; }
+  .card p { line-height: 1.6; margin-bottom: 10px; color: #33424f; }
+
+  label { display: block; font-weight: 600; margin: 12px 0 4px; }
+  input[type=text] {
+    width: 100%; padding: 12px; font-size: 17px; font-family: inherit;
+    border: 1px solid #c8d3de; border-radius: 10px; background: #fafcfe;
+  }
+  input[type=text]:focus { outline: 2px solid #2f80ed; border-color: transparent; }
+  .err { color: #d33; font-size: 14px; min-height: 18px; margin-top: 4px; }
+
+  button.big {
+    display: block; width: 100%; margin-top: 16px;
+    padding: 14px; min-height: 52px; font-size: 18px; font-weight: 700;
+    font-family: inherit; color: #fff; background: #2f80ed;
+    border: none; border-radius: 12px; cursor: pointer;
+  }
+  button.big:active { transform: scale(.99); }
+  button.big.secondary { background: #eef2f6; color: #33424f; }
+
+  a.back { display: inline-block; margin-top: 10px; color: #5a6b7b; font-size: 14px; }
+
+  /* --- דוגמאות כללים במסך הפתיחה --- */
+  .rules { display: flex; gap: 12px; margin: 14px 0; }
+  .rule {
+    flex: 1; background: #fafcfe; border: 1px solid #e1e8ef;
+    border-radius: 12px; padding: 12px 8px; text-align: center;
+  }
+  .rule .dot {
+    width: 56px; height: 56px; border-radius: 50%;
+    margin: 0 auto 8px;
+  }
+  .rule .t { font-weight: 700; font-size: 16px; }
+  .rule .s { font-size: 14px; color: #5a6b7b; margin-top: 2px; }
+  .dot-go  { background: #27ae60; box-shadow: inset 0 -4px 8px rgba(0,0,0,.12); }
+  .dot-nogo { background: #e74c3c; box-shadow: inset 0 -4px 8px rgba(0,0,0,.12); }
+
+  /* --- אזור המשחק --- */
+  #s-game { user-select: none; -webkit-user-select: none; }
+  #topBar {
+    display: flex; align-items: center; justify-content: space-between;
+    margin: 2px 2px 8px; min-height: 24px;
+  }
+  #phaseTag { font-size: 15px; font-weight: 700; color: #7a8a99; }
+
+  #prog {
+    height: 6px; background: #dde6ee; border-radius: 4px;
+    overflow: hidden; margin-bottom: 10px; direction: rtl;
+  }
+  #progFill {
+    height: 100%; width: 0; background: #2f80ed;
+    border-radius: 4px; transition: width .3s;
+  }
+
+  #arena {
+    background: #fff; border-radius: 16px;
+    box-shadow: 0 1px 5px rgba(0,0,0,.08);
+    height: min(52vh, 340px);
+    display: flex; align-items: center; justify-content: center;
+    margin-bottom: 10px;
+    cursor: pointer;
+    touch-action: manipulation;
+    user-select: none; -webkit-user-select: none;
+    position: relative;
+  }
+  #circle {
+    width: min(34vh, 190px); height: min(34vh, 190px);
+    border-radius: 50%;
+    display: none;
+  }
+  #circle.go   { display: block; background: #27ae60; box-shadow: inset 0 -8px 16px rgba(0,0,0,.14); }
+  #circle.nogo { display: block; background: #e74c3c; box-shadow: inset 0 -8px 16px rgba(0,0,0,.14); }
+  #arenaHint {
+    position: absolute; bottom: 10px; right: 0; left: 0;
+    text-align: center; font-size: 13px; color: #aab7c3; pointer-events: none;
+  }
+
+  #fb {
+    text-align: center; font-size: 17px; font-weight: 700;
+    min-height: 26px; margin-bottom: 8px;
+  }
+  .fb-ok { color: #1d9e55; }
+  .fb-bad { color: #d33; }
+  .fb-info { color: #33424f; }
+
+  #gameMsg { text-align: center; margin-top: 12px; color: #33424f; line-height: 1.6; }
+  #btnNext { max-width: 460px; margin-left: auto; margin-right: auto; }
+  .hidden { display: none !important; }
+
+  #sendStatus { font-size: 15px; margin-top: 8px; min-height: 22px; }
+  .big-emoji { font-size: 44px; text-align: center; margin-bottom: 6px; }
+  .center { text-align: center; }
+
+  @media (max-width: 380px) {
+    #arena { height: min(46vh, 300px); }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>🚦 עצור וסע</h1>
+    <button id="btnMute" title="השתקת צלילים" aria-label="השתקת צלילים">🔊</button>
+  </header>
+
+  <!-- מסך פתיחה -->
+  <section id="s-intro">
+    <div class="card">
+      <h2>ברוכים הבאים!</h2>
+      <p id="hello" class="hidden" style="font-weight:700"></p>
+      <p>במרכז המסך יופיעו עיגולים, אחד אחרי השני. יש רק שני כללים:</p>
+      <div class="rules">
+        <div class="rule">
+          <div class="dot dot-go"></div>
+          <div class="t">עיגול ירוק</div>
+          <div class="s">סע! לוחצים מהר</div>
+        </div>
+        <div class="rule">
+          <div class="dot dot-nogo"></div>
+          <div class="t">עיגול אדום</div>
+          <div class="s">עצור! לא לוחצים בכלל</div>
+        </div>
+      </div>
+      <p>לוחצים <b>בכל מקום באזור הלבן של המשחק</b> — או על <b>מקש הרווח</b> במקלדת. כל עיגול מופיע לרגע קצר, אז צריך להיות זריזים — אבל גם לדעת לעצור בזמן!</p>
+      <p>המשחק נמשך בערך <b>2 דקות</b>, עם הפסקת מנוחה קצרה באמצע. נתחיל בתרגול קצר עם הסברים.</p>
+      <div id="introForm">
+        <label for="inpName">השם שלך</label>
+        <input type="text" id="inpName" maxlength="60" autocomplete="off">
+        <label for="inpClass">קוד כיתה (מהמורה)</label>
+        <input type="text" id="inpClass" maxlength="20" autocomplete="off">
+        <div class="err" id="formErr"></div>
+      </div>
+      <button class="big" id="btnStart">מתחילים בתרגול</button>
+      <a class="back" href="index.html">&rarr; חזרה לכל התחנות</a>
+    </div>
+  </section>
+
+  <!-- מסך משחק (תרגול + משחק) -->
+  <section id="s-game" class="hidden">
+    <div id="topBar">
+      <div id="phaseTag"></div>
+    </div>
+    <div id="prog"><div id="progFill"></div></div>
+    <div id="arena" aria-label="אזור המשחק — לחץ כאן כשמופיע עיגול ירוק">
+      <div id="circle"></div>
+      <div id="arenaHint">ירוק = ללחוץ כאן (או רווח) &middot; אדום = לא ללחוץ</div>
+    </div>
+    <div id="fb"></div>
+    <div id="gameMsg"></div>
+    <button class="big hidden" id="btnNext"></button>
+  </section>
+
+  <!-- מסך סיום -->
+  <section id="s-end" class="hidden">
+    <div class="card center">
+      <div class="big-emoji">🎉</div>
+      <h2 id="endTitle">כל הכבוד!</h2>
+      <p id="endText"></p>
+      <p id="sendStatus"></p>
+      <button class="big secondary hidden" id="btnRetry">נסה לשלוח שוב</button>
+      <a class="back" href="index.html">&rarr; חזרה לכל התחנות</a>
+    </div>
+  </section>
+</div>
+
+<script>
+'use strict';
+
+/* ================= CORE (pure logic — testable in node) ================= */
+var N_GO = 45;                // 75% ירוק
+var N_NOGO = 15;              // 25% אדום
+var MAX_NOGO_RUN = 2;         // לא יותר מ-2 אדומים ברצף
+var STIM_MS = 650;            // משך הצגת גירוי
+var ISI_MIN = 900;            // הפסקה מינימלית אחרי גירוי
+var ISI_MAX = 1400;           // הפסקה מקסימלית אחרי גירוי
+var RESPONSE_WINDOW_MS = 1000; // חלון תגובה מרגע הופעת הגירוי (נמשך לתוך ההפסקה)
+var BREAK_AFTER = 30;         // הפסקת מנוחה אחרי 30 גירויים
+var BREAK_SECONDS = 5;
+var PRACTICE_GO = 6;
+var PRACTICE_NOGO = 2;
+
+function shuffleInPlace(a, rand) {
+  rand = rand || Math.random;
+  for (var i = a.length - 1; i > 0; i--) {
+    var j = Math.floor(rand() * (i + 1));
+    if (j > i) j = i;
+    var t = a[i]; a[i] = a[j]; a[j] = t;
+  }
+  return a;
+}
+
+// מחזיר אינדקס של אדום שמפר את האילוץ (השלישי ברצף), או -1 אם הסדר תקין
+function firstBadRun(seq, maxRun) {
+  var run = 0;
+  for (var i = 0; i < seq.length; i++) {
+    if (seq[i] === 0) {
+      run++;
+      if (run > maxRun) return i;
+    } else run = 0;
+  }
+  return -1;
+}
+
+// יוצר רצף של 1 (ירוק/Go) ו-0 (אדום/NoGo) בסדר אקראי, בלי יותר מ-maxRun אדומים ברצף
+function makeSequence(nGo, nNoGo, maxRun, rand) {
+  rand = rand || Math.random;
+  var seq = [], i;
+  for (i = 0; i < nGo; i++) seq.push(1);
+  for (i = 0; i < nNoGo; i++) seq.push(0);
+  shuffleInPlace(seq, rand);
+  var guard = 0, bad;
+  while ((bad = firstBadRun(seq, maxRun)) >= 0 && guard++ < 2000) {
+    // מחליפים את האדום המפר עם ירוק במיקום אקראי, ובודקים שוב
+    var ones = [];
+    for (i = 0; i < seq.length; i++) if (seq[i] === 1) ones.push(i);
+    if (!ones.length) break;
+    var j = ones[Math.floor(rand() * ones.length)] ;
+    seq[bad] = 1; seq[j] = 0;
+  }
+  if (firstBadRun(seq, maxRun) >= 0) {
+    // מוצא אחרון (כמעט בלתי אפשרי): בנייה דטרמיניסטית תקינה ירוק-ירוק-אדום
+    seq = [];
+    var g = nGo, n = nNoGo;
+    while (g > 0 || n > 0) {
+      if (g > 0) { seq.push(1); g--; }
+      if (g > 0) { seq.push(1); g--; }
+      if (n > 0) { seq.push(0); n--; }
+    }
+  }
+  return seq;
+}
+
+// רצף תרגול: כמו רצף רגיל, אבל הגירוי הראשון תמיד ירוק (נעים יותר להתחלה)
+function makePracticeSequence(rand) {
+  var seq = makeSequence(PRACTICE_GO, PRACTICE_NOGO, MAX_NOGO_RUN, rand);
+  if (seq[0] === 0) {
+    for (var i = 1; i < seq.length; i++) {
+      if (seq[i] === 1) { seq[0] = 1; seq[i] = 0; break; }
+    }
+  }
+  return seq;
+}
+
+function mean(arr) {
+  if (!arr.length) return 0;
+  var s = 0;
+  for (var i = 0; i < arr.length; i++) s += arr[i];
+  return s / arr.length;
+}
+
+function sd(arr) {
+  if (arr.length < 2) return 0;
+  var m = mean(arr), s = 0;
+  for (var i = 0; i < arr.length; i++) s += (arr[i] - m) * (arr[i] - m);
+  return Math.sqrt(s / (arr.length - 1));
+}
+
+function median(arr) {
+  if (!arr.length) return 0;
+  var s = arr.slice().sort(function (a, b) { return a - b; });
+  var m = Math.floor(s.length / 2);
+  return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
+}
+
+// trials: [{isGo, pressed, rtMs}...] — רק ניסיונות תקפים שהוצגו בפועל
+function computeMetrics(trials) {
+  var go = 0, nogo = 0, comm = 0, omis = 0, rts = [];
+  for (var i = 0; i < trials.length; i++) {
+    var t = trials[i];
+    if (t.isGo) {
+      go++;
+      if (t.pressed) rts.push(t.rtMs);
+      else omis++;
+    } else {
+      nogo++;
+      if (t.pressed) comm++;
+    }
+  }
+  return {
+    goTrials: go,
+    noGoTrials: nogo,
+    commissionErrors: comm,
+    omissionErrors: omis,
+    meanRtMs: Math.round(mean(rts)),
+    rtSdMs: Math.round(sd(rts))
+  };
+}
+
+function goRts(trials) {
+  var rts = [];
+  for (var i = 0; i < trials.length; i++) {
+    if (trials[i].isGo && trials[i].pressed) rts.push(trials[i].rtMs);
+  }
+  return rts;
+}
+
+function computeGameFlags(trials, metrics) {
+  var flags = [];
+  var rts = goRts(trials);
+  if (rts.length >= 5 && median(rts) < 150) flags.push('too-fast');
+  if (metrics.noGoTrials > 0 && metrics.commissionErrors > 0.5 * metrics.noGoTrials) {
+    flags.push('random-pattern');
+  }
+  return flags;
+}
+
+// הערכת תרגול: הבין את שני הכללים?
+// עובר אם לחץ לפחות על 4 מ-6 הירוקים, ולכל היותר לחיצה שגויה אחת על אדום
+function evalPractice(results) {
+  var goHit = 0, comm = 0;
+  for (var i = 0; i < results.length; i++) {
+    var r = results[i];
+    if (r.isGo && r.pressed) goHit++;
+    if (!r.isGo && r.pressed) comm++;
+  }
+  return { goHit: goHit, commission: comm, passed: goHit >= 4 && comm <= 1 };
+}
+/* ================= END CORE ================= */
+
+/* ---------- מצב כללי ---------- */
+var params = new URLSearchParams(location.search);
+var student = {
+  name: (params.get('name') || '').trim().slice(0, 60),
+  classCode: (params.get('class') || '').trim().slice(0, 20)
+};
+
+var mode = 'idle';            // idle | practice | game | done
+var currentTrial = null;      // {isGo, pressed, rtMs, onset} — פעיל מרגע הופעת גירוי עד סוף חלון התגובה
+var hiddenDuring = false;     // הטאב עבר לרקע באמצע ניסיון
+var trials = [];              // ניסיונות המשחק בלבד (לא תרגול)
+var sessionStartT = 0;
+var sessionStarted = false;
+var finished = false;
+var practicePassed = false;
+var practiceRepeats = 0;
+var lastPayload = null;
+
+/* ---------- DOM ---------- */
+function $(id) { return document.getElementById(id); }
+var arenaEl = $('arena'), circleEl = $('circle'), fbEl = $('fb'),
+    phaseEl = $('phaseTag'), gameMsgEl = $('gameMsg'), btnNext = $('btnNext'),
+    progFill = $('progFill'), hintEl = $('arenaHint');
+
+function show(id) { $(id).classList.remove('hidden'); }
+function hide(id) { $(id).classList.add('hidden'); }
+function setFb(t, cls) { fbEl.textContent = t || ''; fbEl.className = cls || ''; }
+function setPhase(t) { phaseEl.textContent = t || ''; }
+function setGameMsg(t) { gameMsgEl.textContent = t || ''; }
+function drawCircle(isGo) { circleEl.className = isGo ? 'go' : 'nogo'; }
+function clearCircle() { circleEl.className = ''; }
+function setProgress(done, total) {
+  progFill.style.width = total ? Math.round(100 * done / total) + '%' : '0%';
+}
+function wait(ms) { return new Promise(function (r) { setTimeout(r, Math.max(0, ms)); }); }
+
+function waitForButton(label) {
+  return new Promise(function (resolve) {
+    btnNext.textContent = label;
+    btnNext.classList.remove('hidden');
+    btnNext.onclick = function () {
+      btnNext.classList.add('hidden');
+      btnNext.onclick = null;
+      btnNext.blur();
+      resolve();
+    };
+  });
+}
+
+// שמירת query string בקישורי חזרה
+document.querySelectorAll('a.back').forEach(function (a) {
+  a.href = 'index.html' + location.search;
+});
+$('s-game').addEventListener('contextmenu', function (e) { e.preventDefault(); });
+
+/* ---------- צלילים (WebAudio, אופציונלי, עם השתקה) ---------- */
+var muted = false;
+try { muted = localStorage.getItem('go-no-go-muted') === '1'; } catch (e) {}
+var audioCtx = null;
+function beep(freq, dur, gain) {
+  if (muted) return;
+  try {
+    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    var o = audioCtx.createOscillator(), g = audioCtx.createGain();
+    o.type = 'sine'; o.frequency.value = freq;
+    g.gain.setValueAtTime(gain || 0.1, audioCtx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + (dur || 0.1));
+    o.connect(g); g.connect(audioCtx.destination);
+    o.start(); o.stop(audioCtx.currentTime + (dur || 0.1) + 0.02);
+  } catch (e) {}
+}
+function updateMuteBtn() { $('btnMute').textContent = muted ? '🔇' : '🔊'; }
+$('btnMute').addEventListener('click', function () {
+  muted = !muted;
+  try { localStorage.setItem('go-no-go-muted', muted ? '1' : '0'); } catch (e) {}
+  updateMuteBtn();
+});
+updateMuteBtn();
+
+/* ---------- קליטת לחיצה (מגע/עכבר על האזור, או מקש רווח) ---------- */
+function onPress() {
+  if (mode !== 'practice' && mode !== 'game') return;
+  var cur = currentTrial;
+  if (!cur || cur.pressed) return;                    // אין גירוי פעיל / לחיצה כפולה — מתעלמים
+  var rt = performance.now() - cur.onset;
+  if (rt > RESPONSE_WINDOW_MS) return;                // לחיצה מאוחרת בתוך ההפסקה — לא נזקפת לאף גירוי
+  cur.pressed = true;
+  cur.rtMs = rt;
+  if (mode === 'practice') {
+    // צליל מיידי בתרגול בלבד (במשחק עצמו — בלי משוב)
+    if (cur.isGo) beep(620, 0.06, 0.06);
+    else beep(200, 0.15, 0.08);
+  }
+}
+
+arenaEl.addEventListener('pointerdown', function (e) {
+  e.preventDefault();
+  onPress();
+});
+document.addEventListener('keydown', function (e) {
+  if (e.code === 'Space' || e.key === ' ') {
+    if (mode === 'practice' || mode === 'game') {
+      e.preventDefault();          // מונע גלילה והפעלת כפתור ממוקד
+      if (!e.repeat) onPress();
+    }
+  }
+});
+
+/* ---------- טאב שעובר לרקע באמצע ---------- */
+document.addEventListener('visibilitychange', function () {
+  if (document.hidden && (mode === 'practice' || mode === 'game')) hiddenDuring = true;
+});
+
+/* ---------- ניסיון בודד ----------
+   מציג גירוי 650ms, ממתין עד סוף חלון התגובה (1000ms מההופעה),
+   ואם withIsi — ממתין גם את שארית ההפסקה האקראית (סה"כ 900-1400ms אחרי הכיבוי).
+   מחזיר {isGo, pressed, rtMs} או null אם הניסיון נפסל (טאב ברקע / טיימר שנתקע). */
+async function runTrial(isGo, withIsi) {
+  hiddenDuring = false;
+  var cur = { isGo: isGo, pressed: false, rtMs: 0, onset: performance.now() };
+  currentTrial = cur;
+  drawCircle(isGo);
+  await wait(STIM_MS);
+  clearCircle();
+  var shownFor = performance.now() - cur.onset;
+  if (hiddenDuring || shownFor > STIM_MS + 450) {     // הגירוי לא הוצג כמו שצריך
+    currentTrial = null;
+    return null;
+  }
+  var rem = RESPONSE_WINDOW_MS - (performance.now() - cur.onset);
+  if (rem > 0) await wait(rem);
+  currentTrial = null;
+  if (hiddenDuring && !cur.pressed) return null;      // הטאב הוסתר לפני שהספיק להגיב
+  if (withIsi) {
+    var isi = ISI_MIN + Math.random() * (ISI_MAX - ISI_MIN);
+    var alreadyPaused = performance.now() - cur.onset - STIM_MS;
+    await wait(isi - alreadyPaused);
+  }
+  return { isGo: cur.isGo, pressed: cur.pressed, rtMs: Math.round(cur.rtMs) };
+}
+
+async function pauseAndResume() {
+  currentTrial = null;
+  clearCircle();
+  setFb('');
+  setGameMsg('שמנו לב שיצאת לרגע מהמסך — זה בסדר! כשאתה מוכן, נמשיך מאותו מקום.');
+  await waitForButton('ממשיכים!');
+  hiddenDuring = false;
+  setGameMsg('');
+  setFb('מתכוננים...', 'fb-info');
+  await wait(1200);
+  setFb('');
+  hiddenDuring = false;
+}
+
+/* ---------- תרגול: 8 גירויים עם משוב ---------- */
+function practiceFeedback(r) {
+  if (r.isGo) {
+    if (r.pressed) { setFb('✓ מצוין! לחצת מהר על הירוק', 'fb-ok'); beep(523, 0.09); setTimeout(function () { beep(784, 0.12); }, 100); }
+    else { setFb('✗ פספוס — כשמופיע עיגול ירוק, לוחצים מהר!', 'fb-bad'); beep(220, 0.2, 0.08); }
+  } else {
+    if (!r.pressed) { setFb('✓ נכון מאוד! על אדום עוצרים ולא לוחצים', 'fb-ok'); beep(523, 0.09); setTimeout(function () { beep(784, 0.12); }, 100); }
+    else { setFb('✗ אופס — עיגול אדום פירושו לעצור, בלי ללחוץ', 'fb-bad'); }
+  }
+}
+
+async function runPractice() {
+  mode = 'practice';
+  var seq = makePracticeSequence();
+  var results = [];
+  setGameMsg('');
+  setFb('מתכוננים...', 'fb-info');
+  await wait(1400);
+  setFb('');
+  var i = 0;
+  while (i < seq.length) {
+    setPhase('תרגול — ' + (i + 1) + ' מתוך ' + seq.length);
+    setProgress(i, seq.length);
+    var r = await runTrial(seq[i] === 1, false);
+    if (r === null) { await pauseAndResume(); continue; }  // חוזרים על אותו גירוי
+    results.push(r);
+    practiceFeedback(r);
+    await wait(1500);
+    setFb('');
+    if (hiddenDuring) await pauseAndResume();
+    i++;
+  }
+  setProgress(seq.length, seq.length);
+  mode = 'idle';
+  return evalPractice(results);
+}
+
+/* ---------- המשחק: 60 גירויים + הפסקת מנוחה באמצע ---------- */
+async function restBreak() {
+  currentTrial = null;
+  setPhase('הפסקת מנוחה');
+  for (var s = BREAK_SECONDS; s >= 1; s--) {
+    setFb('הפסקה קצרה! ממשיכים בעוד ' + s + '...', 'fb-info');
+    await wait(1000);
+  }
+  setFb('ממשיכים!', 'fb-info');
+  await wait(700);
+  setFb('');
+  hiddenDuring = false; // הפסקה בזמן המנוחה לא פוסלת כלום
+}
+
+async function runGame() {
+  mode = 'game';
+  trials = [];
+  var seq = makeSequence(N_GO, N_NOGO, MAX_NOGO_RUN);
+  var didBreak = false;
+  setPhase('המשחק');
+  setGameMsg('');
+  setFb('מתכוננים...', 'fb-info');
+  await wait(1400);
+  setFb('');
+  var i = 0;
+  while (i < seq.length) {
+    if (!didBreak && i === BREAK_AFTER) {
+      didBreak = true;
+      await restBreak();
+      setPhase('המשחק');
+    }
+    setProgress(i, seq.length);
+    var r = await runTrial(seq[i] === 1, true);
+    if (r === null) {                    // ניסיון שנפסל — עוצרים וחוזרים על אותו גירוי
+      await pauseAndResume();
+      setPhase('המשחק');
+      continue;
+    }
+    trials.push(r);
+    if (hiddenDuring) {                  // הוסתר בזמן ההפסקה שאחרי — הניסיון תקף, רק עוצרים
+      await pauseAndResume();
+      setPhase('המשחק');
+    }
+    i++;
+  }
+  setProgress(seq.length, seq.length);
+  mode = 'done';
+  finishSession();
+}
+
+/* ---------- סיום ושליחה ---------- */
+function buildPayload(extraFlags) {
+  var metrics = computeMetrics(trials);
+  var flags = computeGameFlags(trials, metrics);
+  if (practiceRepeats > 0 && flags.indexOf('practice-repeated') === -1) flags.push('practice-repeated');
+  (extraFlags || []).forEach(function (f) {
+    if (flags.indexOf(f) === -1) flags.push(f);
+  });
+  return {
+    name: student.name,
+    classCode: student.classCode,
+    station: 'go-no-go',
+    metrics: metrics,
+    reliability: { flags: flags, practicePassed: practicePassed },
+    durationSeconds: Math.round((performance.now() - sessionStartT) / 1000)
+  };
+}
+
+function saveLocal(payload) {
+  try {
+    localStorage.setItem('game-result-go-no-go',
+      JSON.stringify(Object.assign({}, payload, { savedAt: new Date().toISOString() })));
+  } catch (e) {}
+}
+
+async function sendResult(payload) {
+  var r = await fetch('../api/games/result', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+  if (!r.ok) throw new Error('http ' + r.status);
+  var j = await r.json();
+  if (!j.ok) throw new Error('not ok');
+  return true;
+}
+
+async function trySend() {
+  var st = $('sendStatus');
+  st.textContent = 'שולח את התוצאה...';
+  hide('btnRetry');
+  try {
+    await sendResult(lastPayload);
+    st.textContent = '✓ התוצאה נשמרה בהצלחה';
+    st.className = 'fb-ok';
+    try { localStorage.removeItem('game-result-go-no-go'); } catch (e) {}
+  } catch (e) {
+    saveLocal(lastPayload);
+    st.textContent = 'התוצאה נשמרה במכשיר — היא תישלח כשיהיה חיבור';
+    st.className = '';
+    show('btnRetry');
+  }
+}
+
+function finishSession() {
+  lastPayload = buildPayload();
+  finished = true;
+  hide('s-game');
+  show('s-end');
+
+  var namePart = student.name ? ', ' + student.name : '';
+  $('endTitle').textContent = 'כל הכבוד' + namePart + '!';
+  $('endText').textContent =
+    'סיימת את תחנת "עצור וסע"! שתי דקות שלמות של ריכוז — לדעת מתי לנסוע ומתי לעצור זה כישרון אמיתי. עבודה יפה!';
+  beep(523, 0.1); setTimeout(function () { beep(659, 0.1); }, 120);
+  setTimeout(function () { beep(784, 0.2); }, 240);
+  trySend();
+}
+$('btnRetry').addEventListener('click', trySend);
+
+/* ---------- נטישה באמצע ---------- */
+window.addEventListener('pagehide', function () {
+  if (!sessionStarted || finished) return;
+  if (mode !== 'game' || trials.length < 5) return;  // אין נתונים משמעותיים לשמור
+  var p = buildPayload(['incomplete']);
+  saveLocal(p);
+  try {
+    if (navigator.sendBeacon) {
+      navigator.sendBeacon('../api/games/result',
+        new Blob([JSON.stringify(p)], { type: 'application/json' }));
+    }
+  } catch (e) {}
+});
+
+/* ---------- זרימה ראשית ---------- */
+async function startSession() {
+  hide('s-intro');
+  show('s-game');
+  sessionStarted = true;
+  sessionStartT = performance.now();
+  hintEl.style.display = '';
+
+  // תרגול, עם אפשרות חזרה עד פעמיים אם לא הבין את הכללים
+  while (true) {
+    var pr = await runPractice();
+    if (pr.passed) { practicePassed = true; break; }
+    if (practiceRepeats >= 2) { practicePassed = false; break; }
+    practiceRepeats++;
+    setPhase('');
+    setFb('');
+    setProgress(0, 1);
+    setGameMsg('בוא נעבור על זה שוב, בנחת: עיגול ירוק = לוחצים מהר בכל מקום באזור הלבן (או על מקש הרווח). עיגול אדום = לא לוחצים בכלל, פשוט מחכים שייעלם. ננסה שוב!');
+    await waitForButton('לתרגול נוסף');
+    setGameMsg('');
+  }
+
+  setPhase('');
+  setFb('');
+  setProgress(0, 1);
+  setGameMsg('עכשיו המשחק האמיתי: 60 עיגולים, בערך 2 דקות, עם הפסקת מנוחה קצרה באמצע. הפעם בלי הודעות נכון/טעות — פשוט ירוק = מהר, אדום = עצור. מוכן?');
+  await waitForButton('התחל את המשחק!');
+  setGameMsg('');
+  hintEl.style.display = 'none';
+  runGame();
+}
+
+/* ---------- מסך פתיחה ---------- */
+function initIntro() {
+  if (student.name) {
+    hide('introForm');
+    var h = $('hello');
+    h.textContent = 'שלום ' + student.name + '! 👋';
+    h.classList.remove('hidden');
+  }
+  $('btnStart').addEventListener('click', async function () {
+    if (sessionStarted) return; // מניעת לחיצה כפולה על "התחל"
+    var btn = this;
+    if (!student.name) {
+      var n = $('inpName').value.trim().slice(0, 60);
+      if (!n) { $('formErr').textContent = 'נא להזין שם כדי להתחיל'; return; }
+      student.name = n;
+      student.classCode = $('inpClass').value.trim().slice(0, 20);
+    }
+    if (!student.classCode) {
+      $('formErr').textContent = 'נא להזין קוד כיתה (מקבלים מהמורה)';
+      return;
+    }
+    // אימות הקוד לפני המשחק — אחרת התלמיד משחק ומגלה רק בסוף שהתוצאה נדחית
+    btn.disabled = true;
+    $('formErr').textContent = '';
+    try {
+      var r = await fetch('../api/class-check', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: student.classCode })
+      });
+      if (!r.ok) {
+        var j = await r.json().catch(function () { return {}; });
+        $('formErr').textContent = j.error || 'קוד כיתה לא תקין';
+        btn.disabled = false;
+        return;
+      }
+    } catch (e) {
+      $('formErr').textContent = 'אין חיבור לשרת. בדוק את החיבור ונסה שוב.';
+      btn.disabled = false;
+      return;
+    }
+    btn.disabled = false;
+    $('formErr').textContent = '';
+    startSession();
+  });
+}
+initIntro();
+</script>
+</body>
+</html>

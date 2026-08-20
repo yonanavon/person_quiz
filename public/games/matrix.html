@@ -1,0 +1,1030 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>חידות צורות</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    font-family: 'Segoe UI', Arial, sans-serif;
+    background: #f0f4f8;
+    color: #1a2733;
+    min-height: 100vh;
+    padding: 16px 12px 32px;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .wrap { max-width: 560px; margin: 0 auto; }
+
+  header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 12px; gap: 8px;
+  }
+  header h1 { font-size: 20px; }
+  #btnMute {
+    border: none; background: #fff; border-radius: 10px;
+    width: 48px; height: 48px; font-size: 20px; cursor: pointer;
+    box-shadow: 0 1px 4px rgba(0,0,0,.08); flex: none;
+  }
+
+  .card {
+    background: #fff; border-radius: 14px; padding: 22px 20px;
+    box-shadow: 0 1px 5px rgba(0,0,0,.08); margin-bottom: 14px;
+  }
+  .card h2 { margin-bottom: 10px; font-size: 20px; }
+  .card p { line-height: 1.6; margin-bottom: 10px; color: #33424f; }
+
+  label { display: block; font-weight: 600; margin: 12px 0 4px; }
+  input[type=text] {
+    width: 100%; padding: 12px; font-size: 17px; font-family: inherit;
+    border: 1px solid #c8d3de; border-radius: 10px; background: #fafcfe;
+  }
+  input[type=text]:focus { outline: 2px solid #2f80ed; border-color: transparent; }
+  .err { color: #d33; font-size: 14px; min-height: 18px; margin-top: 4px; }
+
+  button.big {
+    display: block; width: 100%; margin-top: 16px;
+    padding: 14px; min-height: 52px; font-size: 18px; font-weight: 700;
+    font-family: inherit; color: #fff; background: #2f80ed;
+    border: none; border-radius: 12px; cursor: pointer;
+    touch-action: manipulation;
+  }
+  button.big:active { transform: scale(.99); }
+  button.big.secondary { background: #eef2f6; color: #33424f; }
+
+  a.back { display: inline-block; margin-top: 10px; color: #5a6b7b; font-size: 14px; }
+
+  /* --- game area --- */
+  #s-game { user-select: none; -webkit-user-select: none; }
+  #progressLine {
+    display: flex; align-items: center; justify-content: space-between;
+    max-width: 420px; margin: 0 auto 6px; padding: 0 2px;
+    font-size: 14px; color: #5a6b7b; min-height: 22px;
+  }
+  #pbarOuter {
+    max-width: 420px; height: 6px; margin: 0 auto 10px;
+    background: #dde5ec; border-radius: 3px; overflow: hidden;
+  }
+  #pbarInner { height: 100%; width: 0; background: #2f80ed; border-radius: 3px; transition: width .3s; }
+
+  #promptMsg {
+    text-align: center; font-size: 16.5px; font-weight: 600; color: #33424f;
+    max-width: 440px; margin: 0 auto 10px; min-height: 24px; line-height: 1.5;
+  }
+
+  #matrix {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px;
+    background: #fff; border-radius: 14px; padding: 12px;
+    box-shadow: 0 1px 5px rgba(0,0,0,.08);
+    max-width: 420px; margin: 0 auto;
+    direction: rtl; /* תא ראשון מימין, התא החסר בפינה השמאלית-תחתונה */
+    touch-action: manipulation;
+  }
+  .mcell {
+    aspect-ratio: 1 / 1; background: #f7fafc;
+    border: 1px solid #e3eaf1; border-radius: 9px;
+    display: flex; align-items: center; justify-content: center;
+    overflow: hidden;
+  }
+  .mcell svg { width: 90%; height: 90%; display: block; }
+  .mcell.qmark {
+    border: 2px dashed #a9bccd; background: #eef4fa;
+    color: #7a8a99; font-size: 42px; font-weight: 800;
+  }
+
+  #optLabel {
+    text-align: center; font-size: 15px; color: #5a6b7b;
+    margin: 14px 0 8px;
+  }
+  #options {
+    display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px;
+    max-width: 440px; margin: 0 auto; direction: rtl;
+  }
+  .opt {
+    aspect-ratio: 1 / 1; min-width: 48px; min-height: 48px;
+    background: #fff; border: 2px solid #c8d3de; border-radius: 10px;
+    cursor: pointer; padding: 5px; touch-action: manipulation;
+    transition: border-color .12s, background .12s, transform .08s;
+  }
+  .opt:active { transform: scale(.96); }
+  .opt svg { width: 100%; height: 100%; display: block; }
+  .opt.sel { border-color: #2f80ed; background: #eaf2fe; }
+  .opt.ok  { border-color: #1d9e55; background: #e9f9ef; }
+  .opt.bad { border-color: #d33;   background: #fdeeee; }
+  #options.locked .opt { pointer-events: none; }
+
+  #btnSkip {
+    display: block; max-width: 440px; margin: 12px auto 0;
+    width: 100%; min-height: 48px; padding: 11px;
+    font-family: inherit; font-size: 15.5px; font-weight: 600;
+    color: #5a6b7b; background: #eef2f6;
+    border: none; border-radius: 10px; cursor: pointer;
+    touch-action: manipulation;
+  }
+
+  #fbBox {
+    max-width: 440px; margin: 12px auto 0; padding: 12px 14px;
+    border-radius: 10px; font-size: 15.5px; line-height: 1.55;
+  }
+  #fbBox.good { background: #e9f9ef; color: #14713c; }
+  #fbBox.fix  { background: #fdf3e7; color: #8a5a17; }
+
+  #timeBanner {
+    max-width: 440px; margin: 0 auto 12px; padding: 12px 14px;
+    background: #fff7e6; border: 1px solid #f0dcae; border-radius: 12px;
+    font-size: 15px; line-height: 1.5; color: #6b5416;
+  }
+  #timeBanner .row { display: flex; gap: 8px; margin-top: 10px; }
+  #timeBanner button {
+    flex: 1; min-height: 48px; border: none; border-radius: 10px;
+    font-family: inherit; font-size: 15.5px; font-weight: 700; cursor: pointer;
+    touch-action: manipulation;
+  }
+  #btnKeepGoing { background: #2f80ed; color: #fff; }
+  #btnEndNow { background: #eee3c8; color: #6b5416; }
+
+  #btnNext { max-width: 440px; margin-left: auto; margin-right: auto; }
+  .hidden { display: none !important; }
+
+  #sendStatus { font-size: 15px; margin-top: 8px; min-height: 22px; }
+  .fb-ok { color: #1d9e55; }
+  .big-emoji { font-size: 44px; text-align: center; margin-bottom: 6px; }
+  .center { text-align: center; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>🧩 חידות צורות</h1>
+    <button id="btnMute" title="השתקת צלילים" aria-label="השתקת צלילים">🔊</button>
+  </header>
+
+  <!-- מסך פתיחה -->
+  <section id="s-intro">
+    <div class="card">
+      <h2>ברוכים הבאים!</h2>
+      <p id="hello" class="hidden" style="font-weight:700"></p>
+      <p>בכל חידה תראה <b>טבלה של 9 משבצות עם צורות</b>, שמסודרות לפי חוקיות מסוימת.</p>
+      <p>המשבצת האחרונה ריקה, עם סימן שאלה. המשימה שלך: לגלות את החוקיות ולבחור מתוך <b>5 אפשרויות</b> את הצורה שמתאימה למשבצת הריקה.</p>
+      <p>יש 12 חידות, מהקלה לקשה. <b>אין מגבלת זמן</b> — אפשר לחשוב בנחת. אם חידה קשה מדי, אפשר לדלג עליה.</p>
+      <p>נתחיל בחידה אחת לתרגול, עם הסבר.</p>
+      <div id="introForm">
+        <label for="inpName">השם שלך</label>
+        <input type="text" id="inpName" maxlength="60" autocomplete="off">
+        <label for="inpClass">קוד כיתה (מהמורה)</label>
+        <input type="text" id="inpClass" maxlength="20" autocomplete="off">
+        <div class="err" id="formErr"></div>
+      </div>
+      <button class="big" id="btnStart">מתחילים בתרגול</button>
+      <a class="back" href="index.html">&rarr; חזרה לכל התחנות</a>
+    </div>
+  </section>
+
+  <!-- מסך משחק (תרגול + משחק) -->
+  <section id="s-game" class="hidden">
+    <div id="progressLine"><span id="progText"></span><span id="stageTag"></span></div>
+    <div id="pbarOuter"><div id="pbarInner"></div></div>
+    <div id="timeBanner" class="hidden">
+      ⏰ עברו 7 דקות. אפשר להמשיך לפתור בנחת — ואפשר גם לסיים כאן. גם זה מצוין.
+      <div class="row">
+        <button id="btnKeepGoing">אני ממשיך</button>
+        <button id="btnEndNow">לסיים כאן</button>
+      </div>
+    </div>
+    <div id="promptMsg"></div>
+    <div id="matrix" aria-label="טבלת החידה"></div>
+    <div id="optLabel">איזו צורה מתאימה למשבצת הריקה?</div>
+    <div id="options" aria-label="אפשרויות תשובה"></div>
+    <button id="btnSkip">דלג על החידה הזו</button>
+    <div id="fbBox" class="hidden"></div>
+    <button class="big hidden" id="btnNext"></button>
+  </section>
+
+  <!-- מסך סיום -->
+  <section id="s-end" class="hidden">
+    <div class="card center">
+      <div class="big-emoji">🎉</div>
+      <h2 id="endTitle">כל הכבוד!</h2>
+      <p id="endText"></p>
+      <p id="sendStatus"></p>
+      <button class="big secondary hidden" id="btnRetry">נסה לשלוח שוב</button>
+      <a class="back" href="index.html">&rarr; חזרה לכל התחנות</a>
+    </div>
+  </section>
+</div>
+
+<script>
+'use strict';
+
+/* ================= CORE (pure logic — testable in node) ================= */
+/* יצירת 12 הפריטים היא דטרמיניסטית לחלוטין: PRNG עם seed קבוע, כך שכל
+   התלמידים מקבלים בדיוק את אותם פריטים ואת אותו סדר אפשרויות. */
+
+var MX_SEED = 20260729;
+var MX_N_ITEMS = 12;
+var MX_SOFT_LIMIT_MS = 7 * 60 * 1000;   // שעון רך: 7 דקות
+var MX_LOW_EFFORT_MS = 2000;            // חציון מתחת לזה = low-effort
+
+var PALETTE = ['#2f80ed', '#1d9e55', '#e8850c', '#8e44ad', '#c0392b'];
+var SHAPE_POOL = ['circle', 'square', 'triangle', 'diamond', 'star', 'pentagon', 'hex', 'cross'];
+var FILL_ORDER = ['solid', 'half', 'outline'];
+
+/* PRNG דטרמיניסטי (mulberry32) */
+function mulberry32(a) {
+  return function () {
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    var t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+function makeRng(seed) {
+  var f = mulberry32(seed);
+  return {
+    next: f,
+    int: function (n) { return Math.floor(f() * n); },
+    shuffle: function (arr) {
+      var a = arr.slice();
+      for (var i = a.length - 1; i > 0; i--) {
+        var j = Math.floor(f() * (i + 1));
+        var t = a[i]; a[i] = a[j]; a[j] = t;
+      }
+      return a;
+    }
+  };
+}
+
+/* תא במטריצה: צורה, כמות, גודל (1-3), סיבוב (מעלות), מילוי, צבע (אינדקס) */
+function mkCell(p) {
+  return {
+    shape: p.shape || 'circle',
+    count: p.count || 1,
+    size:  p.size  || 2,
+    rot:   p.rot   || 0,
+    fill:  p.fill  || 'solid',
+    color: (p.color == null ? 0 : p.color)
+  };
+}
+
+/* מפתח ויזואלי — שני תאים עם אותו מפתח נראים זהים.
+   סיבוב נלקח בחשבון רק לצורת חץ (הצורה היחידה שמסובבים בפריטים),
+   כדי שסיבוב "בלתי נראה" לא ייחשב הבדל. */
+function visualKey(c) {
+  var rot = (c.shape === 'arrow') ? ((c.rot % 360) + 360) % 360 : 0;
+  return [c.shape, c.count, c.size, rot, c.fill, c.color].join('|');
+}
+
+/* בניית פריט מפונקציית חוק: grid = 8 התאים הראשונים, answer = התא ה-9 (2,2).
+   כך התשובה הנכונה נגזרת מאותם חוקים בדיוק שמייצרים את המטריצה. */
+function finishItem(rng, id, kind, ruleFn, distractorSpecs) {
+  var full = [];
+  for (var r = 0; r < 3; r++) for (var c = 0; c < 3; c++) full.push(mkCell(ruleFn(r, c)));
+  var answer = full[8];
+  var options = rng.shuffle([answer].concat(distractorSpecs.map(mkCell)));
+  return {
+    id: id, kind: kind,
+    grid: full.slice(0, 8),
+    answer: answer,
+    options: options,
+    correctIndex: options.indexOf(answer)
+  };
+}
+
+function buildAllItems() {
+  var rng = makeRng(MX_SEED);
+  var items = [];
+  var sh, cols, col, bases, fills;
+
+  /* --- תרגול: שורות בצורה קבועה (קל מאוד, קבוע ולא תלוי-rng בצורותיו) --- */
+  var practice = finishItem(rng, 'P', 'rows-const-shape',
+    function (r, c) { return { shape: ['circle', 'square', 'triangle'][r], color: 0 }; },
+    [ { shape: 'circle', color: 0 },
+      { shape: 'square', color: 0 },
+      { shape: 'star', color: 0 },
+      { shape: 'triangle', fill: 'outline', color: 0 } ]);
+
+  /* --- 1. קל: בכל שורה אותה צורה --- */
+  sh = rng.shuffle(SHAPE_POOL).slice(0, 4); col = rng.int(PALETTE.length);
+  (function (sh, col) {
+    items.push(finishItem(rng, 1, 'rows-const-shape',
+      function (r, c) { return { shape: sh[r], color: col }; },
+      [ { shape: sh[0], color: col },                    // צורה משורה אחרת
+        { shape: sh[1], color: col },                    // צורה משורה אחרת
+        { shape: sh[3], color: col },                    // צורה שאינה במטריצה
+        { shape: sh[2], fill: 'outline', color: col } ] // צורה נכונה, מילוי שגוי
+    ));
+  })(sh, col);
+
+  /* --- 2. קל: בכל עמודה אותו צבע --- */
+  sh = rng.shuffle(SHAPE_POOL).slice(0, 2);
+  cols = rng.shuffle([0, 1, 2, 3, 4]).slice(0, 4);
+  (function (sh, cols) {
+    items.push(finishItem(rng, 2, 'cols-const-color',
+      function (r, c) { return { shape: sh[0], color: cols[c] }; },
+      [ { shape: sh[0], color: cols[0] },      // צבע של עמודה אחרת
+        { shape: sh[0], color: cols[1] },      // צבע של עמודה אחרת
+        { shape: sh[0], color: cols[3] },      // צבע שאינו במטריצה
+        { shape: sh[1], color: cols[2] } ]     // צבע נכון, צורה שגויה
+    ));
+  })(sh, cols);
+
+  /* --- 3. קל: הכמות גדלה לאורך השורה (1,2,3) --- */
+  sh = rng.shuffle(SHAPE_POOL).slice(0, 3);
+  cols = rng.shuffle([0, 1, 2, 3, 4]).slice(0, 3);
+  (function (sh, cols) {
+    items.push(finishItem(rng, 3, 'count-progression',
+      function (r, c) { return { shape: sh[r], color: cols[r], count: c + 1 }; },
+      [ { shape: sh[2], color: cols[2], count: 2 },   // כמות של עמודה קודמת
+        { shape: sh[2], color: cols[2], count: 4 },   // המשך יתר של הרצף
+        { shape: sh[0], color: cols[0], count: 3 },   // כמות נכונה, שורה שגויה
+        { shape: sh[2], color: cols[2], count: 1 } ]  // כמות של העמודה הראשונה
+    ));
+  })(sh, cols);
+
+  /* --- 4. קל: הגודל גדל לאורך השורה --- */
+  sh = rng.shuffle(SHAPE_POOL).slice(0, 3); col = rng.int(PALETTE.length);
+  (function (sh, col) {
+    items.push(finishItem(rng, 4, 'size-progression',
+      function (r, c) { return { shape: sh[r], size: c + 1, color: col }; },
+      [ { shape: sh[2], size: 1, color: col },   // גודל של העמודה הראשונה
+        { shape: sh[2], size: 2, color: col },   // גודל של העמודה האמצעית
+        { shape: sh[0], size: 3, color: col },   // גודל נכון, צורה שגויה
+        { shape: sh[1], size: 2, color: col } ]  // צורה וגודל שגויים
+    ));
+  })(sh, col);
+
+  /* --- 5. בינוני: החץ מסתובב 45° בכל צעד בשורה --- */
+  bases = rng.shuffle([0, 90, 180]); col = rng.int(PALETTE.length);
+  (function (bases, col) {
+    items.push(finishItem(rng, 5, 'rotation-progression',
+      function (r, c) { return { shape: 'arrow', rot: bases[r] + 45 * c, color: col }; },
+      [ { shape: 'arrow', rot: bases[2],       color: col },   // בלי סיבוב (עמודה ראשונה)
+        { shape: 'arrow', rot: bases[2] + 45,  color: col },   // צעד אחד בלבד
+        { shape: 'arrow', rot: bases[2] + 135, color: col },   // צעד אחד יותר מדי
+        { shape: 'arrow', rot: bases[2] + 180, color: col } ]  // כיוון הפוך
+    ));
+  })(bases, col);
+
+  /* --- 6. בינוני: ריבוע לטיני — כל צורה פעם אחת בכל שורה ובכל עמודה --- */
+  sh = rng.shuffle(SHAPE_POOL).slice(0, 3); col = rng.int(PALETTE.length);
+  (function (sh, col) {
+    var variant = rng.int(2); // שני סידורים לטיניים אפשריים
+    var idx = function (r, c) { return variant ? (r + 2 * c) % 3 : (r + c) % 3; };
+    var aShape = sh[idx(2, 2)];
+    var others = sh.filter(function (s) { return s !== aShape; });
+    items.push(finishItem(rng, 6, 'latin-shapes',
+      function (r, c) { return { shape: sh[idx(r, c)], color: col }; },
+      [ { shape: others[0], color: col },                    // צורה שכבר יש בשורה/עמודה
+        { shape: others[1], color: col },                    // צורה שכבר יש בשורה/עמודה
+        { shape: aShape, fill: 'outline', color: col },      // צורה נכונה, מילוי שגוי
+        { shape: aShape, size: 1, color: col } ]             // צורה נכונה, גודל שגוי
+    ));
+  })(sh, col);
+
+  /* --- 7. בינוני: המילוי משתנה לאורך השורה (מלא ← חצי ← קו מתאר) --- */
+  sh = rng.shuffle(SHAPE_POOL).slice(0, 3); col = rng.int(PALETTE.length);
+  (function (sh, col) {
+    items.push(finishItem(rng, 7, 'fill-progression',
+      function (r, c) { return { shape: sh[r], fill: FILL_ORDER[c], color: col }; },
+      [ { shape: sh[2], fill: 'solid', color: col },     // מילוי של העמודה הראשונה
+        { shape: sh[2], fill: 'half', color: col },      // מילוי של העמודה האמצעית
+        { shape: sh[0], fill: 'outline', color: col },   // מילוי נכון, צורה שגויה
+        { shape: sh[1], fill: 'half', color: col } ]     // צורה ומילוי שגויים
+    ));
+  })(sh, col);
+
+  /* --- 8. בינוני: הכמות גדלה גם בשורה וגם בעמודה (count = 1+r+c) --- */
+  sh = rng.shuffle(SHAPE_POOL).slice(0, 3); col = rng.int(PALETTE.length);
+  (function (sh, col) {
+    items.push(finishItem(rng, 8, 'count-both-axes',
+      function (r, c) { return { shape: sh[r], count: 1 + r + c, color: col }; },
+      [ { shape: sh[2], count: 4, color: col },   // אחד פחות מדי
+        { shape: sh[2], count: 6, color: col },   // אחד יותר מדי
+        { shape: sh[2], count: 3, color: col },   // ערך מאמצע המטריצה
+        { shape: sh[0], count: 5, color: col } ]  // כמות נכונה, צורה שגויה
+    ));
+  })(sh, col);
+
+  /* --- 9. קשה: ריבוע לטיני של צורות + הגודל גדל לאורך השורה --- */
+  sh = rng.shuffle(SHAPE_POOL).slice(0, 3); col = rng.int(PALETTE.length);
+  (function (sh, col) {
+    var aShape = sh[(2 + 2) % 3]; // = sh[1]
+    var others = sh.filter(function (s) { return s !== aShape; });
+    items.push(finishItem(rng, 9, 'latin-shapes+size',
+      function (r, c) { return { shape: sh[(r + c) % 3], size: c + 1, color: col }; },
+      [ { shape: aShape, size: 2, color: col },      // צורה נכונה, גודל שגוי
+        { shape: others[0], size: 3, color: col },   // גודל נכון, צורה שגויה
+        { shape: others[1], size: 3, color: col },   // גודל נכון, צורה שגויה
+        { shape: aShape, size: 1, color: col } ]     // צורה נכונה, גודל שגוי
+    ));
+  })(sh, col);
+
+  /* --- 10. קשה: ריבוע לטיני של צורות + הכמות גדלה לאורך השורה --- */
+  sh = rng.shuffle(SHAPE_POOL).slice(0, 3); col = rng.int(PALETTE.length);
+  (function (sh, col) {
+    var aShape = sh[(2 + 2 * 2) % 3]; // = sh[0]
+    var others = sh.filter(function (s) { return s !== aShape; });
+    items.push(finishItem(rng, 10, 'latin-shapes+count',
+      function (r, c) { return { shape: sh[(r + 2 * c) % 3], count: c + 1, color: col }; },
+      [ { shape: aShape, count: 2, color: col },      // צורה נכונה, כמות שגויה
+        { shape: others[0], count: 3, color: col },   // כמות נכונה, צורה שגויה
+        { shape: aShape, count: 4, color: col },      // צורה נכונה, המשך יתר
+        { shape: others[1], count: 2, color: col } ]  // הכל שגוי אבל מחלקי החוקים
+    ));
+  })(sh, col);
+
+  /* --- 11. קשה: סיבוב 45° לאורך השורה + הגודל גדל במורד העמודה --- */
+  bases = rng.shuffle([0, 90, 180]); col = rng.int(PALETTE.length);
+  (function (bases, col) {
+    var aRot = bases[2] + 90;
+    items.push(finishItem(rng, 11, 'rotation+size',
+      function (r, c) { return { shape: 'arrow', rot: bases[r] + 45 * c, size: r + 1, color: col }; },
+      [ { shape: 'arrow', rot: aRot - 45, size: 3, color: col },  // גודל נכון, סיבוב חסר
+        { shape: 'arrow', rot: aRot,      size: 2, color: col },  // סיבוב נכון, גודל שגוי
+        { shape: 'arrow', rot: aRot + 45, size: 3, color: col },  // גודל נכון, סיבוב עודף
+        { shape: 'arrow', rot: aRot - 45, size: 2, color: col } ] // שניהם שגויים
+    ));
+  })(bases, col);
+
+  /* --- 12. הקשה ביותר: ריבוע לטיני כפול — גם הצורה וגם המילוי --- */
+  sh = rng.shuffle(SHAPE_POOL).slice(0, 3);
+  fills = rng.shuffle(FILL_ORDER.slice()); col = rng.int(PALETTE.length);
+  (function (sh, fills, col) {
+    var aShape = sh[(2 + 2) % 3];        // = sh[1]
+    var aFill = fills[(2 + 2 * 2) % 3];  // = fills[0]
+    var oShapes = sh.filter(function (s) { return s !== aShape; });
+    var oFills = fills.filter(function (f) { return f !== aFill; });
+    items.push(finishItem(rng, 12, 'latin-shapes+latin-fills',
+      function (r, c) { return { shape: sh[(r + c) % 3], fill: fills[(r + 2 * c) % 3], color: col }; },
+      [ { shape: aShape, fill: oFills[0], color: col },      // צורה נכונה, מילוי שגוי
+        { shape: oShapes[0], fill: aFill, color: col },      // מילוי נכון, צורה שגויה
+        { shape: oShapes[1], fill: aFill, color: col },      // מילוי נכון, צורה שגויה
+        { shape: aShape, fill: oFills[1], color: col } ]     // צורה נכונה, מילוי שגוי אחר
+    ));
+  })(sh, fills, col);
+
+  return { practice: practice, items: items };
+}
+
+/* בדיקות תקינות של פריט: תשובה יחידה, בלי מסיחים כפולים, אינדקס נכון */
+function validateItem(it) {
+  var problems = [];
+  if (!it.grid || it.grid.length !== 8) problems.push('grid-length!=8');
+  if (!it.options || it.options.length !== 5) problems.push('options!=5');
+  var ak = visualKey(it.answer);
+  var keys = it.options.map(visualKey);
+  var matches = keys.filter(function (k) { return k === ak; }).length;
+  if (matches !== 1) problems.push('answer-appears-' + matches + '-times');
+  var seen = {};
+  keys.forEach(function (k, i) {
+    if (seen[k] != null) problems.push('duplicate-options-' + seen[k] + '&' + i);
+    seen[k] = i;
+  });
+  if (it.correctIndex < 0 || it.correctIndex > 4) problems.push('bad-correctIndex');
+  else if (keys[it.correctIndex] !== ak) problems.push('correctIndex-key-mismatch');
+  return problems;
+}
+
+function validateAllItems(built) {
+  var all = [built.practice].concat(built.items);
+  var report = { ok: true, problems: [], positions: [] };
+  all.forEach(function (it) {
+    var p = validateItem(it);
+    if (p.length) { report.ok = false; report.problems.push({ id: it.id, problems: p }); }
+    if (it.id !== 'P') report.positions.push(it.correctIndex);
+  });
+  return report;
+}
+
+function median(arr) {
+  if (!arr.length) return 0;
+  var s = arr.slice().sort(function (a, b) { return a - b; });
+  var m = Math.floor(s.length / 2);
+  return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
+}
+/* ================= END CORE ================= */
+
+/* ================= SVG rendering ================= */
+var COUNT_POS = {
+  1: [[50, 50]],
+  2: [[30, 50], [70, 50]],
+  3: [[50, 28], [28, 70], [72, 70]],
+  4: [[30, 30], [70, 30], [30, 70], [70, 70]],
+  5: [[30, 30], [70, 30], [50, 50], [30, 70], [70, 70]],
+  6: [[32, 25], [68, 25], [32, 50], [68, 50], [32, 75], [68, 75]]
+};
+var SIZE_FACTOR = [0.55, 0.75, 1.0];
+var BASE_R = { 1: 36, 2: 20, 3: 18, 4: 17, 5: 15, 6: 14 };
+var gradSeq = 0;
+
+function ngonPts(n, r, startDeg) {
+  var pts = [];
+  for (var i = 0; i < n; i++) {
+    var a = (startDeg + i * 360 / n) * Math.PI / 180;
+    pts.push([r * Math.cos(a), r * Math.sin(a)]);
+  }
+  return pts;
+}
+function starPts(r) {
+  var pts = [];
+  for (var i = 0; i < 10; i++) {
+    var rad = (i % 2 === 0) ? r : r * 0.45;
+    var a = (-90 + i * 36) * Math.PI / 180;
+    pts.push([rad * Math.cos(a), rad * Math.sin(a)]);
+  }
+  return pts;
+}
+function crossPts(r) {
+  var w = r * 0.36;
+  return [[-w, -r], [w, -r], [w, -w], [r, -w], [r, w], [w, w],
+          [w, r], [-w, r], [-w, w], [-r, w], [-r, -w], [-w, -w]];
+}
+function arrowPts(r) {
+  return [[0, -r], [0.68 * r, -0.1 * r], [0.28 * r, -0.1 * r], [0.28 * r, r],
+          [-0.28 * r, r], [-0.28 * r, -0.1 * r], [-0.68 * r, -0.1 * r]];
+}
+function ptsAttr(pts) {
+  return pts.map(function (p) {
+    return p[0].toFixed(2) + ',' + p[1].toFixed(2);
+  }).join(' ');
+}
+function shapeMarkup(shape, r, paint) {
+  var common = 'fill="' + paint.fill + '" stroke="' + paint.stroke +
+               '" stroke-width="' + paint.sw + '" stroke-linejoin="round"';
+  if (shape === 'circle') return '<circle r="' + r + '" ' + common + '/>';
+  if (shape === 'square') {
+    var s = r * 0.88;
+    return '<rect x="' + (-s).toFixed(2) + '" y="' + (-s).toFixed(2) +
+           '" width="' + (2 * s).toFixed(2) + '" height="' + (2 * s).toFixed(2) +
+           '" rx="' + (r * 0.1).toFixed(2) + '" ' + common + '/>';
+  }
+  var pts;
+  if (shape === 'triangle') pts = ngonPts(3, r, -90);
+  else if (shape === 'diamond') pts = ngonPts(4, r, -90);
+  else if (shape === 'pentagon') pts = ngonPts(5, r, -90);
+  else if (shape === 'hex') pts = ngonPts(6, r, 0);
+  else if (shape === 'star') pts = starPts(r);
+  else if (shape === 'cross') pts = crossPts(r);
+  else if (shape === 'arrow') pts = arrowPts(r);
+  else pts = ngonPts(4, r, -90);
+  return '<polygon points="' + ptsAttr(pts) + '" ' + common + '/>';
+}
+
+function renderCellSVG(cell) {
+  var sf = SIZE_FACTOR[cell.size - 1] || 0.75;
+  var R = (BASE_R[cell.count] || 15) * sf;
+  var color = PALETTE[cell.color] || PALETTE[0];
+  var defs = '', paint;
+  if (cell.fill === 'outline') {
+    paint = { fill: '#ffffff', stroke: color, sw: Math.max(3.4, R * 0.17).toFixed(2) };
+  } else if (cell.fill === 'half') {
+    gradSeq++;
+    var gid = 'mxg' + gradSeq;
+    defs = '<defs><linearGradient id="' + gid + '" x1="0" y1="0" x2="0" y2="1">' +
+           '<stop offset="0.5" stop-color="' + color + '"/>' +
+           '<stop offset="0.5" stop-color="#ffffff"/></linearGradient></defs>';
+    paint = { fill: 'url(#' + gid + ')', stroke: color, sw: '3' };
+  } else {
+    paint = { fill: color, stroke: color, sw: '2' };
+  }
+  var positions = COUNT_POS[cell.count] || COUNT_POS[1];
+  var inner = positions.map(function (p) {
+    return '<g transform="translate(' + p[0] + ' ' + p[1] + ') rotate(' + (cell.rot || 0) + ')">' +
+           shapeMarkup(cell.shape, R, paint) + '</g>';
+  }).join('');
+  return '<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">' +
+         defs + inner + '</svg>';
+}
+/* ================= END SVG ================= */
+
+/* ---------- מצב כללי ---------- */
+var params = new URLSearchParams(location.search);
+var student = {
+  name: (params.get('name') || '').trim().slice(0, 60),
+  classCode: (params.get('class') || '').trim().slice(0, 20)
+};
+
+var BUILT = buildAllItems();
+(function () {
+  var rep = validateAllItems(BUILT);
+  if (!rep.ok) { try { console.error('matrix item validation failed', rep.problems); } catch (e) {} }
+})();
+
+var sessionStarted = false;
+var sessionStartT = 0;
+var finished = false;
+var practicePassed = false;
+var practiceRepeats = 0;      // ניסיונות נוספים בתרגול (מעבר לראשון)
+var gameStartT = 0;
+var perItem = [];             // { correct, rtMs } — הפורמט המדויק של המפרט
+var itemMeta = [];            // מידע פנימי (skipped) לחישובי דגלים בלבד
+var endedEarly = false;       // "לסיים כאן" מהשעון הרך
+var softTimerId = null;
+var softBannerShown = false;
+var lastPayload = null;
+
+/* מצב הפריט הנוכחי */
+var itemShownAt = 0;
+var answering = false;        // מקבלים קלט כרגע?
+var itemResolver = null;
+
+/* ---------- DOM ---------- */
+function $(id) { return document.getElementById(id); }
+var matrixEl = $('matrix'), optionsEl = $('options'),
+    promptEl = $('promptMsg'), fbEl = $('fbBox'),
+    btnSkip = $('btnSkip'), btnNext = $('btnNext'),
+    progText = $('progText'), stageTag = $('stageTag'), pbar = $('pbarInner');
+
+document.querySelectorAll('a.back').forEach(function (a) {
+  a.href = 'index.html' + location.search;
+});
+document.addEventListener('contextmenu', function (e) {
+  if (!$('s-game').classList.contains('hidden')) e.preventDefault();
+});
+
+/* ---------- צלילים (WebAudio, אופציונלי, עם השתקה) ---------- */
+var muted = false;
+try { muted = localStorage.getItem('matrix-muted') === '1'; } catch (e) {}
+var audioCtx = null;
+function beep(freq, dur, gain) {
+  if (muted) return;
+  try {
+    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    var o = audioCtx.createOscillator(), g = audioCtx.createGain();
+    o.type = 'sine'; o.frequency.value = freq;
+    g.gain.setValueAtTime(gain || 0.1, audioCtx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + (dur || 0.1));
+    o.connect(g); g.connect(audioCtx.destination);
+    o.start(); o.stop(audioCtx.currentTime + (dur || 0.1) + 0.02);
+  } catch (e) {}
+}
+function updateMuteBtn() { $('btnMute').textContent = muted ? '🔇' : '🔊'; }
+$('btnMute').addEventListener('click', function () {
+  muted = !muted;
+  try { localStorage.setItem('matrix-muted', muted ? '1' : '0'); } catch (e) {}
+  updateMuteBtn();
+});
+updateMuteBtn();
+
+/* ---------- עזרים ---------- */
+function show(id) { $(id).classList.remove('hidden'); }
+function hide(id) { $(id).classList.add('hidden'); }
+function setPrompt(t) { promptEl.textContent = t || ''; }
+function setProgress(t, frac) {
+  progText.textContent = t || '';
+  pbar.style.width = Math.round((frac || 0) * 100) + '%';
+}
+function setFeedback(t, cls) {
+  if (!t) { fbEl.className = 'hidden'; fbEl.textContent = ''; return; }
+  fbEl.textContent = t;
+  fbEl.className = cls || '';
+}
+function waitForButton(label) {
+  return new Promise(function (resolve) {
+    btnNext.textContent = label;
+    btnNext.classList.remove('hidden');
+    btnNext.onclick = function () {
+      btnNext.classList.add('hidden');
+      btnNext.onclick = null;
+      resolve();
+    };
+  });
+}
+
+/* ---------- ציור פריט ---------- */
+var optBtns = [];
+(function buildOptionButtons() {
+  for (var i = 0; i < 5; i++) {
+    (function (i) {
+      var b = document.createElement('button');
+      b.className = 'opt';
+      b.setAttribute('aria-label', 'אפשרות ' + (i + 1));
+      b.addEventListener('pointerdown', function (e) { e.preventDefault(); });
+      b.addEventListener('click', function () { onChoose(i); });
+      optionsEl.appendChild(b);
+      optBtns.push(b);
+    })(i);
+  }
+})();
+btnSkip.addEventListener('click', function () { onSkip(); });
+
+function drawItem(item) {
+  show('matrix'); show('optLabel'); show('options');
+  matrixEl.innerHTML = '';
+  for (var i = 0; i < 8; i++) {
+    var d = document.createElement('div');
+    d.className = 'mcell';
+    d.innerHTML = renderCellSVG(item.grid[i]);
+    matrixEl.appendChild(d);
+  }
+  var q = document.createElement('div');
+  q.className = 'mcell qmark';
+  q.textContent = '?';
+  matrixEl.appendChild(q);
+  for (var j = 0; j < 5; j++) {
+    optBtns[j].innerHTML = renderCellSVG(item.options[j]);
+    optBtns[j].className = 'opt';
+  }
+  optionsEl.classList.remove('locked');
+}
+
+/* מריץ פריט אחד ומחזיר { choice, rtMs, skipped } */
+function runItem(item, allowSkip) {
+  return new Promise(function (resolve) {
+    drawItem(item);
+    btnSkip.classList.toggle('hidden', !allowSkip);
+    itemShownAt = performance.now();
+    answering = true;
+    itemResolver = resolve;
+  });
+}
+function settleItem(result) {
+  if (!answering || !itemResolver) return;
+  answering = false;
+  optionsEl.classList.add('locked');
+  var r = itemResolver; itemResolver = null;
+  r(result);
+}
+function onChoose(i) {
+  if (!answering) return;                          // מניעת לחיצה כפולה
+  var now = performance.now();
+  if (now - itemShownAt < 250) return;             // הגנה מלחיצה נגררת מהפריט הקודם
+  optBtns[i].classList.add('sel');
+  beep(520, 0.06, 0.07);
+  settleItem({ choice: i, rtMs: Math.round(now - itemShownAt), skipped: false });
+}
+function onSkip() {
+  if (!answering) return;
+  var now = performance.now();
+  if (now - itemShownAt < 250) return;
+  beep(300, 0.08, 0.06);
+  settleItem({ choice: -1, rtMs: Math.round(now - itemShownAt), skipped: true });
+}
+function wait(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+
+/* ---------- תרגול ---------- */
+var PRACTICE_INTRO =
+  'בוא נפתור יחד חידה לדוגמה. הסתכל על השורות: בשורה העליונה — עיגולים. ' +
+  'באמצעית — ריבועים. בתחתונה — משולשים. איזו צורה מתאימה למשבצת הריקה?';
+
+async function runPractice() {
+  stageTag.textContent = 'תרגול';
+  setProgress('חידת תרגול', 0);
+  var attempts = 0, solved = false;
+  setPrompt('חידת תרגול — עם הסבר');
+  setFeedback(PRACTICE_INTRO, 'fix');
+
+  while (attempts < 3 && !solved) {
+    attempts++;
+    var res = await runItem(BUILT.practice, false);
+    if (res.choice === BUILT.practice.correctIndex) {
+      solved = true;
+      optBtns[res.choice].classList.add('ok');
+      setFeedback('✓ נכון מאוד! בכל שורה יש אותה צורה, ולכן במשבצת הריקה חסר משולש. ' +
+                  'ככה פותרים — מחפשים את החוקיות בשורות ובעמודות.', 'good');
+      beep(523, 0.1); setTimeout(function () { beep(784, 0.15); }, 110);
+    } else {
+      optBtns[res.choice].classList.add('bad');
+      beep(220, 0.2, 0.08);
+      if (attempts < 3) {
+        setFeedback('✗ לא בדיוק. שים לב: בכל שורה כל הצורות זהות. בשורה התחתונה יש משולשים — ' +
+                    'ולכן גם במשבצת הריקה צריך להיות משולש מלא. נסה שוב!', 'fix');
+        await waitForButton('מנסה שוב');
+        practiceRepeats++;
+      } else {
+        optBtns[BUILT.practice.correctIndex].classList.add('ok');
+        setFeedback('זה בסדר גמור! התשובה הנכונה היא המשולש המלא — כי בכל שורה יש אותה צורה. ' +
+                    'עכשיו, כשההיגיון ברור, מתחילים באמת.', 'fix');
+      }
+    }
+  }
+  practicePassed = solved;
+  await waitForButton('מתחילים ב-12 החידות');
+  setFeedback('');
+}
+
+/* ---------- השעון הרך ---------- */
+function armSoftTimer() {
+  softTimerId = setTimeout(function () {
+    if (finished || softBannerShown) return;
+    softBannerShown = true;
+    show('timeBanner');
+    beep(440, 0.12, 0.06);
+  }, MX_SOFT_LIMIT_MS);
+}
+$('btnKeepGoing').addEventListener('click', function () { hide('timeBanner'); });
+$('btnEndNow').addEventListener('click', function () {
+  hide('timeBanner');
+  endedEarly = true;
+  /* אם ממתינים כרגע לתשובה על פריט — הוא נסגר כדילוג */
+  if (answering) settleItem({ choice: -1, rtMs: Math.round(performance.now() - itemShownAt), skipped: true });
+});
+
+/* ---------- המשחק ---------- */
+async function runGame() {
+  stageTag.textContent = '';
+  setPrompt('מכאן מתחילות החידות האמיתיות. הפעם בלי משוב — פשוט בחר את התשובה שנראית לך נכונה. בהצלחה!');
+  setProgress('12 חידות', 0);
+  hide('matrix'); hide('optLabel'); hide('options');
+  optBtns.forEach(function (b) { b.innerHTML = ''; b.className = 'opt'; });
+  btnSkip.classList.add('hidden');
+  await waitForButton('התחל');
+  setPrompt('');
+
+  gameStartT = performance.now();
+  armSoftTimer();
+
+  for (var i = 0; i < MX_N_ITEMS; i++) {
+    if (endedEarly) {
+      perItem.push({ correct: false, rtMs: 0 });
+      itemMeta.push({ skipped: true, attempted: false });
+      continue;
+    }
+    setProgress('חידה ' + (i + 1) + ' מתוך ' + MX_N_ITEMS, i / MX_N_ITEMS);
+    var item = BUILT.items[i];
+    var res = await runItem(item, true);
+    var correct = !res.skipped && res.choice === item.correctIndex;
+    perItem.push({ correct: correct, rtMs: res.rtMs });
+    itemMeta.push({ skipped: res.skipped, attempted: true });
+    if (i < MX_N_ITEMS - 1 && !endedEarly) await wait(280);
+  }
+  if (softTimerId) clearTimeout(softTimerId);
+  finishSession();
+}
+
+/* ---------- סיום ושליחה ---------- */
+function buildMetrics() {
+  var correct = 0, skipped = 0;
+  for (var i = 0; i < perItem.length; i++) {
+    if (perItem[i].correct) correct++;
+    if (itemMeta[i] && itemMeta[i].skipped) skipped++;
+  }
+  return {
+    items: MX_N_ITEMS,
+    correct: correct,
+    skipped: skipped,
+    perItem: perItem.slice(),
+    totalTimeMs: gameStartT ? Math.round(performance.now() - gameStartT) : 0
+  };
+}
+
+function buildPayload(extraFlags) {
+  var flags = [];
+  if (practiceRepeats > 0) flags.push('practice-repeated');
+  var attemptedRts = [];
+  for (var i = 0; i < perItem.length; i++) {
+    if (itemMeta[i] && itemMeta[i].attempted) attemptedRts.push(perItem[i].rtMs);
+  }
+  if (attemptedRts.length >= 4 && median(attemptedRts) < MX_LOW_EFFORT_MS) flags.push('low-effort');
+  (extraFlags || []).forEach(function (f) {
+    if (flags.indexOf(f) === -1) flags.push(f);
+  });
+  return {
+    name: student.name,
+    classCode: student.classCode,
+    station: 'matrix',
+    metrics: buildMetrics(),
+    reliability: { flags: flags, practicePassed: practicePassed },
+    durationSeconds: Math.round((performance.now() - sessionStartT) / 1000)
+  };
+}
+
+function saveLocal(payload) {
+  try {
+    localStorage.setItem('game-result-matrix',
+      JSON.stringify(Object.assign({}, payload, { savedAt: new Date().toISOString() })));
+  } catch (e) {}
+}
+
+async function sendResult(payload) {
+  var r = await fetch('../api/games/result', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+  if (!r.ok) throw new Error('http ' + r.status);
+  var j = await r.json();
+  if (!j.ok) throw new Error('not ok');
+  return true;
+}
+
+async function trySend() {
+  var st = $('sendStatus');
+  st.textContent = 'שולח את התוצאה...';
+  hide('btnRetry');
+  try {
+    await sendResult(lastPayload);
+    st.textContent = '✓ התוצאה נשמרה בהצלחה';
+    st.className = 'fb-ok';
+    try { localStorage.removeItem('game-result-matrix'); } catch (e) {}
+  } catch (e) {
+    saveLocal(lastPayload);
+    st.textContent = 'התוצאה נשמרה במכשיר — היא תישלח כשיהיה חיבור';
+    st.className = '';
+    show('btnRetry');
+  }
+}
+$('btnRetry').addEventListener('click', trySend);
+
+function finishSession() {
+  finished = true;
+  lastPayload = buildPayload();
+  hide('s-game');
+  show('s-end');
+
+  var namePart = student.name ? ', ' + student.name : '';
+  var answered = 0;
+  itemMeta.forEach(function (m) { if (m.attempted && !m.skipped) answered++; });
+  var title, text;
+  if (endedEarly) {
+    title = 'כל הכבוד' + namePart + '!';
+    text = 'השקעת מחשבה אמיתית בחידות — וידעת גם מתי לעצור. סיימת את התחנה!';
+  } else if (answered >= 10) {
+    title = 'מדהים' + namePart + '!';
+    text = 'עברת את כל 12 החידות — כולל הקשות שבסוף. זו חשיבה רצינית. סיימת את התחנה!';
+  } else {
+    title = 'כל הכבוד' + namePart + '!';
+    text = 'התמודדת עם חידות חשיבה אמיתיות ולא ויתרת. סיימת את התחנה!';
+  }
+  $('endTitle').textContent = title;
+  $('endText').textContent = text;
+  beep(523, 0.1); setTimeout(function () { beep(659, 0.1); }, 120);
+  setTimeout(function () { beep(784, 0.2); }, 240);
+  trySend();
+}
+
+/* ---------- נטישה באמצע ---------- */
+window.addEventListener('pagehide', function () {
+  if (!sessionStarted || finished) return;
+  if (!perItem.length) return; // אין עדיין מה לשמור
+  var p = buildPayload(['incomplete']);
+  saveLocal(p);
+  try {
+    if (navigator.sendBeacon) {
+      navigator.sendBeacon('../api/games/result',
+        new Blob([JSON.stringify(p)], { type: 'application/json' }));
+    }
+  } catch (e) {}
+});
+
+/* ---------- זרימה ראשית ---------- */
+async function startSession() {
+  hide('s-intro');
+  show('s-game');
+  sessionStarted = true;
+  sessionStartT = performance.now();
+  await runPractice();
+  await runGame();
+}
+
+/* ---------- מסך פתיחה ---------- */
+function initIntro() {
+  if (student.name) {
+    hide('introForm');
+    var h = $('hello');
+    h.textContent = 'שלום ' + student.name + '! 👋';
+    h.classList.remove('hidden');
+  }
+  $('btnStart').addEventListener('click', async function () {
+    var btn = this;
+    if (!student.name) {
+      var n = $('inpName').value.trim().slice(0, 60);
+      if (!n) { $('formErr').textContent = 'נא להזין שם כדי להתחיל'; return; }
+      student.name = n;
+      student.classCode = $('inpClass').value.trim().slice(0, 20);
+    }
+    if (!student.classCode) {
+      $('formErr').textContent = 'נא להזין קוד כיתה (מקבלים מהמורה)';
+      return;
+    }
+    // אימות הקוד לפני המשחק — אחרת התלמיד משחק ומגלה רק בסוף שהתוצאה נדחית
+    btn.disabled = true;
+    $('formErr').textContent = '';
+    try {
+      var r = await fetch('../api/class-check', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: student.classCode })
+      });
+      if (!r.ok) {
+        var j = await r.json().catch(function () { return {}; });
+        $('formErr').textContent = j.error || 'קוד כיתה לא תקין';
+        btn.disabled = false;
+        return;
+      }
+    } catch (e) {
+      $('formErr').textContent = 'אין חיבור לשרת. בדוק את החיבור ונסה שוב.';
+      btn.disabled = false;
+      return;
+    }
+    btn.disabled = false;
+    $('formErr').textContent = '';
+    startSession();
+  });
+}
+initIntro();
+</script>
+</body>
+</html>

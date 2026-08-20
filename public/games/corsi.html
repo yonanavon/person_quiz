@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>זיכרון הקוביות</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    font-family: 'Segoe UI', Arial, sans-serif;
+    background: #f0f4f8;
+    color: #1a2733;
+    min-height: 100vh;
+    padding: 16px 12px 32px;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .wrap { max-width: 560px; margin: 0 auto; }
+
+  header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 12px; gap: 8px;
+  }
+  header h1 { font-size: 20px; }
+  #btnMute {
+    border: none; background: #fff; border-radius: 10px;
+    width: 48px; height: 48px; font-size: 20px; cursor: pointer;
+    box-shadow: 0 1px 4px rgba(0,0,0,.08);
+  }
+
+  .card {
+    background: #fff; border-radius: 14px; padding: 22px 20px;
+    box-shadow: 0 1px 5px rgba(0,0,0,.08); margin-bottom: 14px;
+  }
+  .card h2 { margin-bottom: 10px; font-size: 20px; }
+  .card p { line-height: 1.6; margin-bottom: 10px; color: #33424f; }
+
+  label { display: block; font-weight: 600; margin: 12px 0 4px; }
+  input[type=text] {
+    width: 100%; padding: 12px; font-size: 17px; font-family: inherit;
+    border: 1px solid #c8d3de; border-radius: 10px; background: #fafcfe;
+  }
+  input[type=text]:focus { outline: 2px solid #2f80ed; border-color: transparent; }
+  .err { color: #d33; font-size: 14px; min-height: 18px; margin-top: 4px; }
+
+  button.big {
+    display: block; width: 100%; margin-top: 16px;
+    padding: 14px; min-height: 52px; font-size: 18px; font-weight: 700;
+    font-family: inherit; color: #fff; background: #2f80ed;
+    border: none; border-radius: 12px; cursor: pointer;
+  }
+  button.big:active { transform: scale(.99); }
+  button.big.secondary { background: #eef2f6; color: #33424f; }
+
+  a.back { display: inline-block; margin-top: 10px; color: #5a6b7b; font-size: 14px; }
+
+  /* --- game area --- */
+  #s-game { user-select: none; -webkit-user-select: none; }
+  #msg {
+    text-align: center; font-size: 18px; font-weight: 700;
+    min-height: 56px; display: flex; align-items: center; justify-content: center;
+    padding: 4px 8px;
+  }
+  #subMsg {
+    text-align: center; color: #5a6b7b; font-size: 15px; min-height: 24px;
+  }
+  #levelTag {
+    text-align: center; font-size: 14px; color: #7a8a99; min-height: 20px; margin-bottom: 2px;
+  }
+  #board {
+    position: relative;
+    width: min(92vw, 460px);
+    aspect-ratio: 1 / 1;
+    margin: 8px auto;
+    background: #fff;
+    border-radius: 16px;
+    box-shadow: 0 1px 5px rgba(0,0,0,.08);
+    touch-action: manipulation;
+  }
+  #board.locked { pointer-events: none; }
+  .block {
+    position: absolute;
+    width: 16.5%; aspect-ratio: 1 / 1;
+    background: #cfd9e4;
+    border: none; border-radius: 14%;
+    cursor: pointer;
+    touch-action: manipulation;
+    transition: background .1s, transform .1s, box-shadow .1s;
+  }
+  .block.lit {
+    background: #2f80ed;
+    box-shadow: 0 0 0 4px rgba(47,128,237,.25), 0 0 18px rgba(47,128,237,.55);
+    transform: scale(1.08);
+  }
+  .block.tapped {
+    background: #56617a;
+    transform: scale(.94);
+  }
+  .badge {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-weight: 800; font-size: 22px; pointer-events: none;
+  }
+  .fb-ok { color: #1d9e55; }
+  .fb-bad { color: #d33; }
+
+  #btnNext { max-width: 460px; margin-left: auto; margin-right: auto; }
+  .hidden { display: none !important; }
+
+  #sendStatus { font-size: 15px; margin-top: 8px; min-height: 22px; }
+  .big-emoji { font-size: 44px; text-align: center; margin-bottom: 6px; }
+  .center { text-align: center; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>🔵 זיכרון הקוביות</h1>
+    <button id="btnMute" title="השתקת צלילים" aria-label="השתקת צלילים">🔊</button>
+  </header>
+
+  <!-- מסך פתיחה -->
+  <section id="s-intro">
+    <div class="card">
+      <h2>ברוכים הבאים!</h2>
+      <p id="hello" class="hidden" style="font-weight:700"></p>
+      <p>במשחק הזה תראה לוח עם 9 ריבועים. הריבועים <b>נדלקים בכחול, בזה אחר זה</b>.</p>
+      <p>המשימה שלך: לזכור <b>באיזה סדר</b> הם נדלקו, ואז ללחוץ עליהם <b>בדיוק באותו הסדר</b>.</p>
+      <p>מתחילים בקל, וכל שלב הרצף מתארך קצת. נתחיל בתרגול קצר.</p>
+      <div id="introForm">
+        <label for="inpName">השם שלך</label>
+        <input type="text" id="inpName" maxlength="60" autocomplete="off">
+        <label for="inpClass">קוד כיתה (מהמורה)</label>
+        <input type="text" id="inpClass" maxlength="20" autocomplete="off">
+        <div class="err" id="formErr"></div>
+      </div>
+      <button class="big" id="btnStart">מתחילים בתרגול</button>
+      <a class="back" href="index.html">&rarr; חזרה לכל התחנות</a>
+    </div>
+  </section>
+
+  <!-- מסך משחק (תרגול + משחק) -->
+  <section id="s-game" class="hidden">
+    <div id="levelTag"></div>
+    <div id="msg"></div>
+    <div id="board" aria-label="לוח הריבועים"></div>
+    <div id="subMsg"></div>
+    <button class="big hidden" id="btnNext"></button>
+  </section>
+
+  <!-- מסך סיום -->
+  <section id="s-end" class="hidden">
+    <div class="card center">
+      <div class="big-emoji">🎉</div>
+      <h2 id="endTitle">כל הכבוד!</h2>
+      <p id="endText"></p>
+      <p id="sendStatus"></p>
+      <button class="big secondary hidden" id="btnRetry">נסה לשלוח שוב</button>
+      <a class="back" href="index.html">&rarr; חזרה לכל התחנות</a>
+    </div>
+  </section>
+</div>
+
+<script>
+'use strict';
+
+/* ================= CORE (pure logic — testable in node) ================= */
+var CORSI_ON_MS = 600;    // משך הדלקת ריבוע
+var CORSI_OFF_MS = 250;   // הפסקה בין ריבועים
+var CORSI_MIN_LEN = 2;
+var CORSI_MAX_LEN = 9;
+var CORSI_N_BLOCKS = 9;
+
+// יצירת רצף באורך len: ערבוב פישר-ייטס של 0..8 ולקיחת הראשונים (בלי חזרות)
+function genSequence(len, rand) {
+  rand = rand || Math.random;
+  var idx = [];
+  for (var i = 0; i < CORSI_N_BLOCKS; i++) idx.push(i);
+  for (var j = idx.length - 1; j > 0; j--) {
+    var k = Math.floor(rand() * (j + 1));
+    var tmp = idx[j]; idx[j] = idx[k]; idx[k] = tmp;
+  }
+  return idx.slice(0, len);
+}
+
+function seqEquals(a, b) {
+  if (a.length !== b.length) return false;
+  for (var i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
+  return true;
+}
+
+function newGame() {
+  return { len: CORSI_MIN_LEN, failsAtLen: 0, span: 0, totalCorrect: 0,
+           trials: [], over: false, completedAll: false };
+}
+
+// כללי המשחק: שני ניסיונות לאורך; הצלחה אחת מעלה אורך; שני כישלונות באותו אורך = סוף
+function recordTrial(g, correct, timeMs) {
+  if (g.over) return g;
+  g.trials.push({ len: g.len, correct: !!correct, timeMs: Math.round(timeMs) });
+  if (correct) {
+    g.totalCorrect++;
+    g.span = g.len;
+    g.failsAtLen = 0;
+    if (g.len >= CORSI_MAX_LEN) { g.over = true; g.completedAll = true; }
+    else g.len++;
+  } else {
+    g.failsAtLen++;
+    if (g.failsAtLen >= 2) g.over = true;
+  }
+  return g;
+}
+
+function median(arr) {
+  if (!arr.length) return 0;
+  var s = arr.slice().sort(function (a, b) { return a - b; });
+  var m = Math.floor(s.length / 2);
+  return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
+}
+/* ================= END CORE ================= */
+
+/* ---------- מצב כללי ---------- */
+var LAYOUT = [ // פריסה א-סימטרית קבועה (אחוזים מתוך הלוח), בהשראת לוח Corsi הקלאסי
+  { x: 6,  y: 16 }, { x: 33, y: 4  }, { x: 66, y: 10 },
+  { x: 15, y: 42 }, { x: 46, y: 32 }, { x: 79, y: 38 },
+  { x: 4,  y: 70 }, { x: 36, y: 62 }, { x: 68, y: 74 }
+];
+
+var params = new URLSearchParams(location.search);
+var student = {
+  name: (params.get('name') || '').trim().slice(0, 60),
+  classCode: (params.get('class') || '').trim().slice(0, 20)
+};
+
+var phase = 'idle';          // idle | showing | input | between
+var curSeq = [];
+var taps = [];
+var inputStartT = 0;
+var lastTapBlock = -1, lastTapT = 0;
+var inputResolver = null;
+
+var game = null;
+var sessionStartT = 0;
+var sessionStarted = false;
+var finished = false;
+var practicePassed = false;
+var practiceRepeats = 0;
+var firstRts = [];           // זמן עד לחיצה ראשונה בכל רצף במשחק (לזיהוי too-fast)
+var lastPayload = null;
+
+/* ---------- DOM ---------- */
+function $(id) { return document.getElementById(id); }
+var board = $('board'), msgEl = $('msg'), subEl = $('subMsg'),
+    levelEl = $('levelTag'), btnNext = $('btnNext');
+var blocks = [];
+
+LAYOUT.forEach(function (p, i) {
+  var b = document.createElement('button');
+  b.className = 'block';
+  b.style.left = p.x + '%';
+  b.style.top = p.y + '%';
+  b.dataset.i = i;
+  b.setAttribute('aria-label', 'ריבוע ' + (i + 1));
+  b.addEventListener('pointerdown', function (e) { e.preventDefault(); onTap(i); });
+  board.appendChild(b);
+  blocks.push(b);
+});
+board.addEventListener('contextmenu', function (e) { e.preventDefault(); });
+
+// שמירת query string בקישורי חזרה
+document.querySelectorAll('a.back').forEach(function (a) {
+  a.href = 'index.html' + location.search;
+});
+
+/* ---------- צלילים (WebAudio, אופציונלי, עם השתקה) ---------- */
+var muted = false;
+try { muted = localStorage.getItem('corsi-muted') === '1'; } catch (e) {}
+var audioCtx = null;
+function beep(freq, dur, gain) {
+  if (muted) return;
+  try {
+    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    var o = audioCtx.createOscillator(), g = audioCtx.createGain();
+    o.type = 'sine'; o.frequency.value = freq;
+    g.gain.setValueAtTime(gain || 0.12, audioCtx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + (dur || 0.12));
+    o.connect(g); g.connect(audioCtx.destination);
+    o.start(); o.stop(audioCtx.currentTime + (dur || 0.12) + 0.02);
+  } catch (e) {}
+}
+function updateMuteBtn() { $('btnMute').textContent = muted ? '🔇' : '🔊'; }
+$('btnMute').addEventListener('click', function () {
+  muted = !muted;
+  try { localStorage.setItem('corsi-muted', muted ? '1' : '0'); } catch (e) {}
+  updateMuteBtn();
+});
+updateMuteBtn();
+
+/* ---------- עזרים ---------- */
+function wait(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+function setMsg(t) { msgEl.textContent = t; }
+function setSub(t, cls) { subEl.textContent = t || ''; subEl.className = cls || ''; }
+function setLevel(t) { levelEl.textContent = t || ''; }
+function show(id) { $(id).classList.remove('hidden'); }
+function hide(id) { $(id).classList.add('hidden'); }
+
+function waitForButton(label) {
+  return new Promise(function (resolve) {
+    btnNext.textContent = label;
+    btnNext.classList.remove('hidden');
+    btnNext.onclick = function () {
+      btnNext.classList.add('hidden');
+      btnNext.onclick = null;
+      resolve();
+    };
+  });
+}
+
+function light(i, on) { blocks[i].classList.toggle('lit', on); }
+
+function flashTap(i) {
+  blocks[i].classList.add('tapped');
+  setTimeout(function () { blocks[i].classList.remove('tapped'); }, 180);
+}
+
+function showBadge(i, text) {
+  var d = document.createElement('div');
+  d.className = 'badge';
+  d.textContent = text;
+  blocks[i].appendChild(d);
+  return d;
+}
+function clearBadges() {
+  document.querySelectorAll('.badge').forEach(function (d) { d.remove(); });
+}
+
+/* ---------- הצגת רצף וקליטת תשובה ---------- */
+async function showSequence(seq) {
+  phase = 'showing';
+  board.classList.add('locked');
+  setSub('');
+  await wait(700);
+  for (var i = 0; i < seq.length; i++) {
+    light(seq[i], true);
+    beep(660, 0.15);
+    await wait(CORSI_ON_MS);
+    light(seq[i], false);
+    if (i < seq.length - 1) await wait(CORSI_OFF_MS);
+  }
+  await wait(300);
+}
+
+function collectInput(n) {
+  return new Promise(function (resolve) {
+    taps = [];
+    lastTapBlock = -1; lastTapT = 0;
+    board.classList.remove('locked');
+    inputStartT = performance.now();
+    phase = 'input';
+    inputResolver = { n: n, resolve: resolve };
+  });
+}
+
+function onTap(i) {
+  if (phase !== 'input' || !inputResolver) return;   // לחיצה בזמן הצגת הרצף / בין סבבים — מתעלמים
+  var now = performance.now();
+  if (i === lastTapBlock && now - lastTapT < 300) return; // מניעת לחיצה כפולה מקרית
+  lastTapBlock = i; lastTapT = now;
+  flashTap(i);
+  beep(440, 0.07, 0.08);
+  taps.push({ i: i, t: now });
+  if (taps.length >= inputResolver.n) {
+    phase = 'between';
+    board.classList.add('locked');
+    var r = inputResolver; inputResolver = null;
+    var tapIdx = taps.map(function (t) { return t.i; });
+    r.resolve({
+      taps: tapIdx,
+      timeMs: now - inputStartT,
+      firstRt: taps[0].t - inputStartT
+    });
+  }
+}
+
+async function runTrial(seq) {
+  setMsg('שים לב! 👀');
+  await showSequence(seq);
+  setMsg('עכשיו תורך! לחץ על הריבועים באותו הסדר');
+  var res = await collectInput(seq.length);
+  res.correct = seqEquals(res.taps, seq);
+  return res;
+}
+
+/* ---------- תרגול ---------- */
+async function playDemo() {
+  setLevel('הדגמה');
+  setMsg('צפה: שני ריבועים נדלקים בזה אחר זה');
+  var seq = genSequence(2);
+  await showSequence(seq);
+  setMsg('וכך עונים: לוחצים עליהם באותו הסדר');
+  await wait(400);
+  for (var i = 0; i < seq.length; i++) {
+    var badge = showBadge(seq[i], String(i + 1));
+    blocks[seq[i]].classList.add('tapped');
+    beep(440, 0.07, 0.08);
+    await wait(600);
+    blocks[seq[i]].classList.remove('tapped');
+  }
+  await wait(700);
+  clearBadges();
+  board.classList.add('locked');
+}
+
+async function runPractice() {
+  setLevel('תרגול');
+  await playDemo();
+  setMsg('עכשיו אתה מנסה!');
+  await waitForButton('אני מוכן');
+
+  var correctCount = 0;
+  for (var round = 1; round <= 2; round++) {
+    setLevel('תרגול — ניסיון ' + round + ' מתוך 2');
+    var seq = genSequence(2);
+    var res = await runTrial(seq);
+    if (res.correct) {
+      correctCount++;
+      setMsg('✓ מצוין! בדיוק בסדר הנכון');
+      setSub('כל הכבוד!', 'fb-ok');
+      beep(523, 0.1); setTimeout(function () { beep(784, 0.15); }, 110);
+    } else {
+      setMsg('✗ לא בדיוק');
+      setSub('זכור: לוחצים על הריבועים באותו סדר שבו הם נדלקו', 'fb-bad');
+      beep(220, 0.25, 0.1);
+    }
+    await wait(1200);
+    if (round < 2) await waitForButton('לתרגול הבא');
+    setSub('');
+  }
+  return correctCount;
+}
+
+/* ---------- המשחק ---------- */
+async function runGame() {
+  game = newGame();
+  setLevel('');
+  setMsg('מתחילים באמת! עכשיו בלי משוב בין הסבבים — פשוט עשה כמיטב יכולתך');
+  await waitForButton('התחל את המשחק');
+
+  while (!game.over) {
+    setLevel('שלב: רצף באורך ' + game.len);
+    var seq = genSequence(game.len);
+    var res = await runTrial(seq);
+    firstRts.push(res.firstRt);
+    recordTrial(game, res.correct, res.timeMs);
+    if (!game.over) {
+      setMsg('סבב הבא...');
+      await wait(900);
+    }
+  }
+  finishSession();
+}
+
+/* ---------- סיום ושליחה ---------- */
+function buildPayload(extraFlags) {
+  var flags = [];
+  if (practiceRepeats > 0) flags.push('practice-repeated');
+  if (firstRts.length >= 3 && median(firstRts) < 150) flags.push('too-fast');
+  (extraFlags || []).forEach(function (f) {
+    if (flags.indexOf(f) === -1) flags.push(f);
+  });
+  return {
+    name: student.name,
+    classCode: student.classCode,
+    station: 'corsi',
+    metrics: {
+      span: game ? game.span : 0,
+      totalCorrect: game ? game.totalCorrect : 0,
+      trials: game ? game.trials : []
+    },
+    reliability: { flags: flags, practicePassed: practicePassed },
+    durationSeconds: Math.round((performance.now() - sessionStartT) / 1000)
+  };
+}
+
+function saveLocal(payload) {
+  try {
+    localStorage.setItem('game-result-corsi',
+      JSON.stringify(Object.assign({}, payload, { savedAt: new Date().toISOString() })));
+  } catch (e) {}
+}
+
+async function sendResult(payload) {
+  var r = await fetch('../api/games/result', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+  if (!r.ok) throw new Error('http ' + r.status);
+  var j = await r.json();
+  if (!j.ok) throw new Error('not ok');
+  return true;
+}
+
+async function trySend() {
+  var st = $('sendStatus');
+  st.textContent = 'שולח את התוצאה...';
+  hide('btnRetry');
+  try {
+    await sendResult(lastPayload);
+    st.textContent = '✓ התוצאה נשמרה בהצלחה';
+    st.className = 'fb-ok';
+    try { localStorage.removeItem('game-result-corsi'); } catch (e) {}
+  } catch (e) {
+    saveLocal(lastPayload);
+    st.textContent = 'התוצאה נשמרה במכשיר — היא תישלח כשיהיה חיבור';
+    st.className = '';
+    show('btnRetry');
+  }
+}
+
+function finishSession() {
+  finished = true;
+  lastPayload = buildPayload();
+  hide('s-game');
+  show('s-end');
+
+  var spanReached = game.span;
+  var title, text;
+  var namePart = student.name ? ', ' + student.name : '';
+  if (game.completedAll) {
+    title = 'מדהים' + namePart + '!';
+    text = 'הצלחת לחזור על רצף של 9 ריבועים — הרצף הארוך ביותר במשחק! עבודה נהדרת.';
+  } else if (spanReached >= 2) {
+    title = 'כל הכבוד' + namePart + '!';
+    text = 'הגעת לרצף של ' + spanReached + ' ריבועים. השקעת יפה מאוד — סיימת את התחנה!';
+  } else {
+    title = 'תודה שהשתתפת' + namePart + '!';
+    text = 'זה משחק לא פשוט, והעיקר שניסית ברצינות. סיימת את התחנה!';
+  }
+  $('endTitle').textContent = title;
+  $('endText').textContent = text;
+  beep(523, 0.1); setTimeout(function () { beep(659, 0.1); }, 120);
+  setTimeout(function () { beep(784, 0.2); }, 240);
+  trySend();
+}
+$('btnRetry').addEventListener('click', trySend);
+
+/* ---------- נטישה באמצע ---------- */
+window.addEventListener('pagehide', function () {
+  if (!sessionStarted || finished) return;
+  if (!game || !game.trials.length) return; // אין מה לשמור
+  var p = buildPayload(['incomplete']);
+  saveLocal(p);
+  try {
+    if (navigator.sendBeacon) {
+      navigator.sendBeacon('../api/games/result',
+        new Blob([JSON.stringify(p)], { type: 'application/json' }));
+    }
+  } catch (e) {}
+});
+
+/* ---------- זרימה ראשית ---------- */
+async function startSession() {
+  hide('s-intro');
+  show('s-game');
+  sessionStarted = true;
+  sessionStartT = performance.now();
+
+  // תרגול, עם אפשרות חזרה עד פעמיים אם נכשל בכל הסבבים
+  while (true) {
+    var correct = await runPractice();
+    if (correct > 0) { practicePassed = true; break; }
+    if (practiceRepeats >= 2) { practicePassed = false; break; }
+    practiceRepeats++;
+    setLevel('');
+    setMsg('בוא ננסה שוב את ההסבר והתרגול — זה בסדר גמור');
+    setSub('מסתכלים על הסדר שבו הריבועים נדלקים, ואז לוחצים עליהם באותו הסדר בדיוק');
+    await waitForButton('להסבר ולתרגול נוסף');
+    setSub('');
+  }
+  await runGame();
+}
+
+/* ---------- מסך פתיחה ---------- */
+function initIntro() {
+  if (student.name) {
+    hide('introForm');
+    var h = $('hello');
+    h.textContent = 'שלום ' + student.name + '! 👋';
+    h.classList.remove('hidden');
+  }
+  $('btnStart').addEventListener('click', async function () {
+    var btn = this;
+    if (!student.name) {
+      var n = $('inpName').value.trim().slice(0, 60);
+      if (!n) { $('formErr').textContent = 'נא להזין שם כדי להתחיל'; return; }
+      student.name = n;
+      student.classCode = $('inpClass').value.trim().slice(0, 20);
+    }
+    if (!student.classCode) {
+      $('formErr').textContent = 'נא להזין קוד כיתה (מקבלים מהמורה)';
+      return;
+    }
+    // אימות הקוד לפני המשחק — אחרת התלמיד משחק ומגלה רק בסוף שהתוצאה נדחית
+    btn.disabled = true;
+    $('formErr').textContent = '';
+    try {
+      var r = await fetch('../api/class-check', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: student.classCode })
+      });
+      if (!r.ok) {
+        var j = await r.json().catch(function () { return {}; });
+        $('formErr').textContent = j.error || 'קוד כיתה לא תקין';
+        btn.disabled = false;
+        return;
+      }
+    } catch (e) {
+      $('formErr').textContent = 'אין חיבור לשרת. בדוק את החיבור ונסה שוב.';
+      btn.disabled = false;
+      return;
+    }
+    btn.disabled = false;
+    $('formErr').textContent = '';
+    startSession();
+  });
+}
+initIntro();
+</script>
+</body>
+</html>

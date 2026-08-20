@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>מספרים הפוכים</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    font-family: 'Segoe UI', Arial, sans-serif;
+    background: #f0f4f8;
+    color: #1a2733;
+    min-height: 100vh;
+    padding: 16px 12px 32px;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .wrap { max-width: 560px; margin: 0 auto; }
+
+  header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 12px; gap: 8px;
+  }
+  header h1 { font-size: 20px; }
+  #btnMute {
+    border: none; background: #fff; border-radius: 10px;
+    width: 48px; height: 48px; font-size: 20px; cursor: pointer;
+    box-shadow: 0 1px 4px rgba(0,0,0,.08);
+  }
+
+  .card {
+    background: #fff; border-radius: 14px; padding: 22px 20px;
+    box-shadow: 0 1px 5px rgba(0,0,0,.08); margin-bottom: 14px;
+  }
+  .card h2 { margin-bottom: 10px; font-size: 20px; }
+  .card p { line-height: 1.6; margin-bottom: 10px; color: #33424f; }
+
+  label { display: block; font-weight: 600; margin: 12px 0 4px; }
+  input[type=text] {
+    width: 100%; padding: 12px; font-size: 17px; font-family: inherit;
+    border: 1px solid #c8d3de; border-radius: 10px; background: #fafcfe;
+  }
+  input[type=text]:focus { outline: 2px solid #2f80ed; border-color: transparent; }
+  .err { color: #d33; font-size: 14px; min-height: 18px; margin-top: 4px; }
+
+  button.big {
+    display: block; width: 100%; margin-top: 16px;
+    padding: 14px; min-height: 52px; font-size: 18px; font-weight: 700;
+    font-family: inherit; color: #fff; background: #2f80ed;
+    border: none; border-radius: 12px; cursor: pointer;
+    touch-action: manipulation;
+  }
+  button.big:active { transform: scale(.99); }
+  button.big.secondary { background: #eef2f6; color: #33424f; }
+
+  a.back { display: inline-block; margin-top: 10px; color: #5a6b7b; font-size: 14px; }
+
+  .example {
+    background: #f4f8fc; border: 1px solid #dbe6f0; border-radius: 12px;
+    padding: 12px 14px; margin: 10px 0; text-align: center;
+  }
+  .example .row { font-size: 20px; font-weight: 700; }
+  .example .lbl { font-size: 14px; color: #5a6b7b; margin-bottom: 2px; }
+
+  /* --- game area --- */
+  #s-game { user-select: none; -webkit-user-select: none; }
+  #levelTag {
+    text-align: center; font-size: 14px; color: #7a8a99; min-height: 20px; margin-bottom: 2px;
+  }
+  #msg {
+    text-align: center; font-size: 18px; font-weight: 700;
+    min-height: 56px; display: flex; align-items: center; justify-content: center;
+    padding: 4px 8px;
+  }
+  #subMsg {
+    text-align: center; color: #5a6b7b; font-size: 15px; min-height: 24px; padding: 0 8px;
+  }
+  .fb-ok { color: #1d9e55 !important; }
+  .fb-bad { color: #d33 !important; }
+
+  #stage {
+    background: #fff; border-radius: 16px;
+    box-shadow: 0 1px 5px rgba(0,0,0,.08);
+    width: min(92vw, 460px); margin: 8px auto;
+    min-height: 330px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 14px; touch-action: manipulation;
+  }
+  #digitBox {
+    font-size: 120px; font-weight: 800; line-height: 1;
+    color: #1a2733; min-height: 130px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  #digitBox.demo { color: #2f80ed; }
+
+  #slots {
+    direction: ltr; display: flex; gap: 8px; justify-content: center;
+    flex-wrap: wrap; margin-bottom: 14px; min-height: 56px;
+  }
+  .slot {
+    width: 44px; height: 54px; border-radius: 10px;
+    border: 2px solid #c8d3de; background: #fafcfe;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 28px; font-weight: 800;
+  }
+  .slot.filled { border-color: #2f80ed; background: #eaf2fd; }
+
+  #keypad {
+    direction: ltr;
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+    width: 100%; max-width: 300px;
+  }
+  #keypad button {
+    min-height: 58px; min-width: 48px; font-size: 26px; font-weight: 700;
+    font-family: inherit; border: none; border-radius: 12px;
+    background: #eef2f6; color: #1a2733; cursor: pointer;
+    touch-action: manipulation;
+    box-shadow: 0 1px 2px rgba(0,0,0,.07);
+  }
+  #keypad button:active { transform: scale(.96); background: #dbe6f0; }
+  #keypad button.del { background: #fdecec; color: #b02a2a; font-size: 24px; }
+  #keypad button.ok { background: #1d9e55; color: #fff; grid-column: span 2; font-size: 20px; }
+  #keypad button:disabled { opacity: .45; cursor: default; transform: none; }
+
+  #btnNext { max-width: 460px; margin-left: auto; margin-right: auto; }
+  .hidden { display: none !important; }
+
+  #sendStatus { font-size: 15px; margin-top: 8px; min-height: 22px; }
+  .big-emoji { font-size: 44px; text-align: center; margin-bottom: 6px; }
+  .center { text-align: center; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>🔢 מספרים הפוכים</h1>
+    <button id="btnMute" title="השתקת צלילים" aria-label="השתקת צלילים">🔊</button>
+  </header>
+
+  <!-- מסך פתיחה -->
+  <section id="s-intro">
+    <div class="card">
+      <h2>ברוכים הבאים!</h2>
+      <p id="hello" class="hidden" style="font-weight:700"></p>
+      <p>במשחק הזה יופיעו על המסך ספרות, <b>אחת אחרי השנייה</b>.</p>
+      <p>המשימה שלך: לזכור אותן, ואז להקליד אותן <b>בסדר הפוך</b> — מהספרה האחרונה אל הראשונה.</p>
+      <div class="example">
+        <div class="lbl">לדוגמה, אם הופיעה 7 ואחריה 2:</div>
+        <div class="row">מקלידים קודם <b>2</b> ואז <b>7</b></div>
+      </div>
+      <p>נתחיל בחימום קצר וקל, ואחריו תרגול. בהצלחה!</p>
+      <div id="introForm">
+        <label for="inpName">השם שלך</label>
+        <input type="text" id="inpName" maxlength="60" autocomplete="off">
+        <label for="inpClass">קוד כיתה (מהמורה)</label>
+        <input type="text" id="inpClass" maxlength="20" autocomplete="off">
+        <div class="err" id="formErr"></div>
+      </div>
+      <button class="big" id="btnStart">מתחילים בחימום</button>
+      <a class="back" href="index.html">&rarr; חזרה לכל התחנות</a>
+    </div>
+  </section>
+
+  <!-- מסך משחק (חימום + תרגול + משחק) -->
+  <section id="s-game" class="hidden">
+    <div id="levelTag"></div>
+    <div id="msg"></div>
+    <div id="stage">
+      <div id="digitStage">
+        <div id="digitBox"></div>
+      </div>
+      <div id="answerStage" class="hidden">
+        <div id="slots"></div>
+        <div id="keypad" aria-label="מקלדת מספרים">
+          <button data-d="1">1</button><button data-d="2">2</button><button data-d="3">3</button>
+          <button data-d="4">4</button><button data-d="5">5</button><button data-d="6">6</button>
+          <button data-d="7">7</button><button data-d="8">8</button><button data-d="9">9</button>
+          <button class="del" id="btnDel" aria-label="מחיקה">⌫</button>
+          <button class="ok" id="btnOk">אישור ✓</button>
+        </div>
+      </div>
+    </div>
+    <div id="subMsg"></div>
+    <button class="big hidden" id="btnNext"></button>
+  </section>
+
+  <!-- מסך סיום -->
+  <section id="s-end" class="hidden">
+    <div class="card center">
+      <div class="big-emoji">🎉</div>
+      <h2 id="endTitle">כל הכבוד!</h2>
+      <p id="endText"></p>
+      <p id="sendStatus"></p>
+      <button class="big secondary hidden" id="btnRetry">נסה לשלוח שוב</button>
+      <a class="back" href="index.html">&rarr; חזרה לכל התחנות</a>
+    </div>
+  </section>
+</div>
+
+<script>
+'use strict';
+
+/* ================= CORE (pure logic — testable in node) ================= */
+var DS_SHOW_MS = 1000;   // משך הצגת ספרה
+var DS_GAP_MS = 300;     // הפסקה בין ספרות
+var DS_MIN_LEN = 2;      // אורך פתיחה במשחק לאחור
+var DS_MAX_LEN = 8;      // אורך מקסימלי
+var DS_DIGITS = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+
+// יצירת רצף ספרות באורך len — בלי אותה ספרה פעמיים (ערבוב פישר-ייטס ולקיחת הראשונים)
+function genDigits(len, rand) {
+  rand = rand || Math.random;
+  var pool = DS_DIGITS.slice();
+  for (var j = pool.length - 1; j > 0; j--) {
+    var k = Math.floor(rand() * (j + 1));
+    var tmp = pool[j]; pool[j] = pool[k]; pool[k] = tmp;
+  }
+  return pool.slice(0, len);
+}
+
+// התשובה הנדרשת: הרצף בסדר הפוך (או כמו שהוא, בחימום קדימה)
+function targetFor(seq, backward) {
+  return backward ? seq.slice().reverse() : seq.slice();
+}
+
+function seqEquals(a, b) {
+  if (a.length !== b.length) return false;
+  for (var i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
+  return true;
+}
+
+function checkAnswer(seq, typed, backward) {
+  return seqEquals(targetFor(seq, backward), typed);
+}
+
+function newGame() {
+  return { len: DS_MIN_LEN, failsAtLen: 0, backwardSpan: 0, totalCorrect: 0,
+           trials: [], over: false, completedAll: false };
+}
+
+// כללי המשחק: שני ניסיונות לכל אורך; הצלחה אחת מעלה אורך; שני כישלונות באותו אורך = סוף; מקסימום 8
+function recordTrial(g, correct) {
+  if (g.over) return g;
+  g.trials.push({ len: g.len, correct: !!correct });
+  if (correct) {
+    g.totalCorrect++;
+    g.backwardSpan = g.len;
+    g.failsAtLen = 0;
+    if (g.len >= DS_MAX_LEN) { g.over = true; g.completedAll = true; }
+    else g.len++;
+  } else {
+    g.failsAtLen++;
+    if (g.failsAtLen >= 2) g.over = true;
+  }
+  return g;
+}
+
+function median(arr) {
+  if (!arr.length) return 0;
+  var s = arr.slice().sort(function (a, b) { return a - b; });
+  var m = Math.floor(s.length / 2);
+  return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
+}
+/* ================= END CORE ================= */
+
+/* ---------- מצב כללי ---------- */
+var params = new URLSearchParams(location.search);
+var student = {
+  name: (params.get('name') || '').trim().slice(0, 60),
+  classCode: (params.get('class') || '').trim().slice(0, 20)
+};
+
+var phase = 'idle';          // idle | showing | input | between
+var entry = [];              // הספרות שהוקלדו
+var entryMax = 0;            // כמה ספרות צריך להקליד בסבב הנוכחי
+var inputStartT = 0;
+var firstKeyT = 0;
+var lastKeyD = -1, lastKeyT = 0;
+var inputResolver = null;
+
+var game = null;
+var sessionStartT = 0;
+var sessionStarted = false;
+var finished = false;
+var practicePassed = false;
+var practiceRepeats = 0;
+var firstRts = [];           // זמן עד ההקלדה הראשונה בכל סבב במשחק (לזיהוי too-fast)
+var lastPayload = null;
+
+/* ---------- DOM ---------- */
+function $(id) { return document.getElementById(id); }
+var msgEl = $('msg'), subEl = $('subMsg'), levelEl = $('levelTag'),
+    btnNext = $('btnNext'), digitBox = $('digitBox'),
+    slotsEl = $('slots'), btnOk = $('btnOk'), btnDel = $('btnDel');
+var digitBtns = [];
+document.querySelectorAll('#keypad button[data-d]').forEach(function (b) {
+  digitBtns.push(b);
+  b.addEventListener('pointerdown', function (e) {
+    e.preventDefault();
+    onDigit(parseInt(b.dataset.d, 10));
+  });
+});
+btnDel.addEventListener('pointerdown', function (e) { e.preventDefault(); onDelete(); });
+btnOk.addEventListener('pointerdown', function (e) { e.preventDefault(); onSubmit(); });
+$('keypad').addEventListener('contextmenu', function (e) { e.preventDefault(); });
+
+// תמיכה גם במקלדת פיזית (מחשב)
+document.addEventListener('keydown', function (e) {
+  if (e.repeat) return;
+  if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;
+  if (e.key >= '1' && e.key <= '9') onDigit(parseInt(e.key, 10));
+  else if (e.key === 'Backspace') { e.preventDefault(); onDelete(); }
+  else if (e.key === 'Enter') onSubmit();
+});
+
+// שמירת query string בקישורי חזרה
+document.querySelectorAll('a.back').forEach(function (a) {
+  a.href = 'index.html' + location.search;
+});
+
+/* ---------- צלילים (WebAudio, אופציונלי, עם השתקה) ---------- */
+var muted = false;
+try { muted = localStorage.getItem('digit-span-muted') === '1'; } catch (e) {}
+var audioCtx = null;
+function beep(freq, dur, gain) {
+  if (muted) return;
+  try {
+    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    var o = audioCtx.createOscillator(), g = audioCtx.createGain();
+    o.type = 'sine'; o.frequency.value = freq;
+    g.gain.setValueAtTime(gain || 0.12, audioCtx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + (dur || 0.12));
+    o.connect(g); g.connect(audioCtx.destination);
+    o.start(); o.stop(audioCtx.currentTime + (dur || 0.12) + 0.02);
+  } catch (e) {}
+}
+function updateMuteBtn() { $('btnMute').textContent = muted ? '🔇' : '🔊'; }
+$('btnMute').addEventListener('click', function () {
+  muted = !muted;
+  try { localStorage.setItem('digit-span-muted', muted ? '1' : '0'); } catch (e) {}
+  updateMuteBtn();
+});
+updateMuteBtn();
+
+/* ---------- עזרים ---------- */
+function wait(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+function setMsg(t) { msgEl.textContent = t; }
+function setSub(t, cls) { subEl.textContent = t || ''; subEl.className = cls || ''; }
+function setLevel(t) { levelEl.textContent = t || ''; }
+function show(id) { $(id).classList.remove('hidden'); }
+function hide(id) { $(id).classList.add('hidden'); }
+
+function waitForButton(label) {
+  return new Promise(function (resolve) {
+    btnNext.textContent = label;
+    btnNext.classList.remove('hidden');
+    btnNext.onclick = function () {
+      btnNext.classList.add('hidden');
+      btnNext.onclick = null;
+      resolve();
+    };
+  });
+}
+
+function seqText(seq) {
+  // ניסוח עברי מפורש של סדר הספרות — חד-משמעי גם בטקסט RTL
+  return seq.join(' ואז ');
+}
+
+/* ---------- תצוגת ספרות ---------- */
+async function showDigits(seq, demo) {
+  phase = 'showing';
+  hide('answerStage');
+  show('digitStage');
+  digitBox.classList.toggle('demo', !!demo);
+  digitBox.textContent = '';
+  await wait(700);
+  for (var i = 0; i < seq.length; i++) {
+    digitBox.textContent = String(seq[i]);
+    beep(660, 0.12, 0.08);
+    await wait(DS_SHOW_MS);
+    digitBox.textContent = '';
+    if (i < seq.length - 1) await wait(DS_GAP_MS);
+  }
+  await wait(300);
+}
+
+/* ---------- קלט במקלדת המסך ---------- */
+function renderSlots() {
+  slotsEl.innerHTML = '';
+  for (var i = 0; i < entryMax; i++) {
+    var d = document.createElement('div');
+    d.className = 'slot' + (i < entry.length ? ' filled' : '');
+    d.textContent = i < entry.length ? String(entry[i]) : '';
+    slotsEl.appendChild(d);
+  }
+  btnOk.disabled = entry.length !== entryMax;
+  btnDel.disabled = entry.length === 0;
+  digitBtns.forEach(function (b) { b.disabled = entry.length >= entryMax; });
+}
+
+function collectInput(n) {
+  return new Promise(function (resolve) {
+    entry = [];
+    entryMax = n;
+    firstKeyT = 0;
+    lastKeyD = -1; lastKeyT = 0;
+    hide('digitStage');
+    show('answerStage');
+    renderSlots();
+    inputStartT = performance.now();
+    phase = 'input';
+    inputResolver = resolve;
+  });
+}
+
+function onDigit(d) {
+  if (phase !== 'input' || !inputResolver) return;  // הקלדה בזמן הצגת ספרות / בין סבבים — מתעלמים
+  if (entry.length >= entryMax) return;
+  var now = performance.now();
+  if (d === lastKeyD && now - lastKeyT < 250) return; // מניעת לחיצה כפולה מקרית
+  lastKeyD = d; lastKeyT = now;
+  if (!firstKeyT) firstKeyT = now;
+  entry.push(d);
+  renderSlots();
+  beep(440, 0.06, 0.07);
+}
+
+function onDelete() {
+  if (phase !== 'input' || !inputResolver) return;
+  if (!entry.length) return;
+  entry.pop();
+  lastKeyD = -1;
+  renderSlots();
+  beep(300, 0.06, 0.06);
+}
+
+function onSubmit() {
+  if (phase !== 'input' || !inputResolver) return;
+  if (entry.length !== entryMax) return;
+  phase = 'between';                                // נסגר מיד — מונע שליחה כפולה
+  var r = inputResolver; inputResolver = null;
+  btnOk.disabled = true; btnDel.disabled = true;
+  digitBtns.forEach(function (b) { b.disabled = true; });
+  var now = performance.now();
+  r({
+    typed: entry.slice(),
+    firstRt: (firstKeyT || now) - inputStartT
+  });
+}
+
+async function runTrial(seq, backward) {
+  setMsg('שים לב! 👀 זוכרים את הספרות');
+  await showDigits(seq);
+  setMsg(backward
+    ? 'עכשיו הקלד את הספרות בסדר הפוך — מהאחרונה לראשונה'
+    : 'עכשיו הקלד את הספרות באותו הסדר שראית');
+  var res = await collectInput(seq.length);
+  res.correct = checkAnswer(seq, res.typed, backward);
+  return res;
+}
+
+/* ---------- חימום: 2 רצפים קדימה (לא נספר) ---------- */
+async function runWarmup() {
+  setLevel('חימום');
+  setMsg('קודם חימום קל: הקלד את הספרות באותו הסדר שהופיעו');
+  setSub('רק כדי להכיר את המקלדת — זה לא נספר');
+  await waitForButton('אני מוכן');
+  setSub('');
+  var lens = [2, 3];
+  for (var w = 0; w < lens.length; w++) {
+    setLevel('חימום — רצף ' + (w + 1) + ' מתוך 2');
+    var seq = genDigits(lens[w]);
+    var res = await runTrial(seq, false);
+    if (res.correct) {
+      setMsg('✓ מצוין!');
+      setSub('הקלדת בדיוק נכון', 'fb-ok');
+      beep(523, 0.1); setTimeout(function () { beep(784, 0.15); }, 110);
+    } else {
+      setMsg('✗ לא בדיוק');
+      setSub('הספרות שהופיעו היו: ' + seqText(seq), 'fb-bad');
+      beep(220, 0.25, 0.1);
+    }
+    await wait(1400);
+    if (w < lens.length - 1) { await waitForButton('לרצף הבא'); }
+    setSub('');
+  }
+}
+
+/* ---------- הסבר "הפוך" + הדגמה ---------- */
+async function playBackwardDemo() {
+  setLevel('הדגמה');
+  setMsg('מעכשיו מקלידים הפוך! צפה בדוגמה');
+  setSub('אם מופיעות 7 ואז 2 — מקלידים 2 ואז 7');
+  await waitForButton('להדגמה');
+  var seq = [7, 2];
+  await showDigits(seq, true);
+  // הדגמת ההקלדה ההפוכה: מילוי אוטומטי של המשבצות
+  setMsg('הספרה האחרונה הייתה 2 — לכן מקלידים קודם 2, ואז 7');
+  entry = [];
+  entryMax = 2;
+  hide('digitStage');
+  show('answerStage');
+  renderSlots();
+  var rev = targetFor(seq, true);
+  for (var i = 0; i < rev.length; i++) {
+    await wait(900);
+    entry.push(rev[i]);
+    renderSlots();
+    beep(440, 0.06, 0.07);
+  }
+  await wait(1200);
+  hide('answerStage');
+  show('digitStage');
+  setSub('');
+}
+
+/* ---------- תרגול לאחור (עם משוב) ---------- */
+async function runPractice() {
+  await playBackwardDemo();
+  setMsg('עכשיו אתה מנסה! זכור: מקלידים בסדר הפוך');
+  await waitForButton('אני מוכן');
+
+  var correctCount = 0;
+  for (var round = 1; round <= 2; round++) {
+    setLevel('תרגול — ניסיון ' + round + ' מתוך 2');
+    var seq = genDigits(2);
+    var res = await runTrial(seq, true);
+    if (res.correct) {
+      correctCount++;
+      setMsg('✓ מצוין! בדיוק בסדר ההפוך');
+      setSub('כל הכבוד!', 'fb-ok');
+      beep(523, 0.1); setTimeout(function () { beep(784, 0.15); }, 110);
+    } else {
+      setMsg('✗ לא בדיוק');
+      setSub('הופיעו ' + seqText(seq) + ', ולכן הסדר ההפוך הוא ' + seqText(targetFor(seq, true)), 'fb-bad');
+      beep(220, 0.25, 0.1);
+    }
+    await wait(1800);
+    if (round < 2) await waitForButton('לתרגול הבא');
+    setSub('');
+  }
+  return correctCount;
+}
+
+/* ---------- המשחק ---------- */
+async function runGame() {
+  game = newGame();
+  setLevel('');
+  setMsg('מתחילים באמת! מעכשיו בלי משוב בין הסבבים — פשוט עשה כמיטב יכולתך');
+  setSub('תמיד מקלידים בסדר הפוך. הרצפים יתארכו משלב לשלב');
+  await waitForButton('התחל את המשחק');
+  setSub('');
+
+  while (!game.over) {
+    setLevel('שלב: רצף באורך ' + game.len);
+    var seq = genDigits(game.len);
+    var res = await runTrial(seq, true);
+    firstRts.push(res.firstRt);
+    recordTrial(game, res.correct);
+    if (!game.over) {
+      setMsg('סבב הבא...');
+      hide('answerStage');
+      show('digitStage');
+      await wait(900);
+    }
+  }
+  finishSession();
+}
+
+/* ---------- סיום ושליחה ---------- */
+function buildPayload(extraFlags) {
+  var flags = [];
+  if (practiceRepeats > 0) flags.push('practice-repeated');
+  if (firstRts.length >= 3 && median(firstRts) < 150) flags.push('too-fast');
+  (extraFlags || []).forEach(function (f) {
+    if (flags.indexOf(f) === -1) flags.push(f);
+  });
+  return {
+    name: student.name,
+    classCode: student.classCode,
+    station: 'digit-span',
+    metrics: {
+      backwardSpan: game ? game.backwardSpan : 0,
+      totalCorrect: game ? game.totalCorrect : 0,
+      trials: game ? game.trials : []
+    },
+    reliability: { flags: flags, practicePassed: practicePassed },
+    durationSeconds: Math.round((performance.now() - sessionStartT) / 1000)
+  };
+}
+
+function saveLocal(payload) {
+  try {
+    localStorage.setItem('game-result-digit-span',
+      JSON.stringify(Object.assign({}, payload, { savedAt: new Date().toISOString() })));
+  } catch (e) {}
+}
+
+async function sendResult(payload) {
+  var r = await fetch('../api/games/result', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+  if (!r.ok) throw new Error('http ' + r.status);
+  var j = await r.json();
+  if (!j.ok) throw new Error('not ok');
+  return true;
+}
+
+async function trySend() {
+  var st = $('sendStatus');
+  st.textContent = 'שולח את התוצאה...';
+  hide('btnRetry');
+  try {
+    await sendResult(lastPayload);
+    st.textContent = '✓ התוצאה נשמרה בהצלחה';
+    st.className = 'fb-ok';
+    try { localStorage.removeItem('game-result-digit-span'); } catch (e) {}
+  } catch (e) {
+    saveLocal(lastPayload);
+    st.textContent = 'התוצאה נשמרה במכשיר — היא תישלח כשיהיה חיבור';
+    st.className = '';
+    show('btnRetry');
+  }
+}
+
+function finishSession() {
+  finished = true;
+  lastPayload = buildPayload();
+  hide('s-game');
+  show('s-end');
+
+  var span = game.backwardSpan;
+  var title, text;
+  var namePart = student.name ? ', ' + student.name : '';
+  if (game.completedAll) {
+    title = 'מדהים' + namePart + '!';
+    text = 'הצלחת להפוך רצף של 8 ספרות — הרצף הארוך ביותר במשחק! עבודה נהדרת.';
+  } else if (span >= 2) {
+    title = 'כל הכבוד' + namePart + '!';
+    text = 'הצלחת להפוך רצף של ' + span + ' ספרות. השקעת יפה מאוד — סיימת את התחנה!';
+  } else {
+    title = 'תודה שהשתתפת' + namePart + '!';
+    text = 'להפוך מספרים בראש זה ממש לא פשוט, והעיקר שניסית ברצינות. סיימת את התחנה!';
+  }
+  $('endTitle').textContent = title;
+  $('endText').textContent = text;
+  beep(523, 0.1); setTimeout(function () { beep(659, 0.1); }, 120);
+  setTimeout(function () { beep(784, 0.2); }, 240);
+  trySend();
+}
+$('btnRetry').addEventListener('click', trySend);
+
+/* ---------- נטישה באמצע ---------- */
+window.addEventListener('pagehide', function () {
+  if (!sessionStarted || finished) return;
+  if (!game || !game.trials.length) return; // אין מה לשמור
+  var p = buildPayload(['incomplete']);
+  saveLocal(p);
+  try {
+    if (navigator.sendBeacon) {
+      navigator.sendBeacon('../api/games/result',
+        new Blob([JSON.stringify(p)], { type: 'application/json' }));
+    }
+  } catch (e) {}
+});
+
+/* ---------- זרימה ראשית ---------- */
+async function startSession() {
+  hide('s-intro');
+  show('s-game');
+  sessionStarted = true;
+  sessionStartT = performance.now();
+
+  await runWarmup();
+
+  // תרגול לאחור, עם אפשרות חזרה עד פעמיים אם נכשל בכל הסבבים
+  while (true) {
+    var correct = await runPractice();
+    if (correct > 0) { practicePassed = true; break; }
+    if (practiceRepeats >= 2) { practicePassed = false; break; }
+    practiceRepeats++;
+    setLevel('');
+    setMsg('בוא נראה שוב את ההסבר — זה בסדר גמור');
+    setSub('זוכרים את הספרות, ומקלידים אותן מהסוף להתחלה: הספרה האחרונה ראשונה');
+    await waitForButton('להסבר ולתרגול נוסף');
+    setSub('');
+  }
+  await runGame();
+}
+
+/* ---------- מסך פתיחה ---------- */
+function initIntro() {
+  if (student.name) {
+    hide('introForm');
+    var h = $('hello');
+    h.textContent = 'שלום ' + student.name + '! 👋';
+    h.classList.remove('hidden');
+  }
+  $('btnStart').addEventListener('click', async function () {
+    if (sessionStarted) return;
+    var btn = this;
+    if (!student.name) {
+      var n = $('inpName').value.trim().slice(0, 60);
+      if (!n) { $('formErr').textContent = 'נא להזין שם כדי להתחיל'; return; }
+      student.name = n;
+      student.classCode = $('inpClass').value.trim().slice(0, 20);
+    }
+    if (!student.classCode) {
+      $('formErr').textContent = 'נא להזין קוד כיתה (מקבלים מהמורה)';
+      return;
+    }
+    // אימות הקוד לפני המשחק — אחרת התלמיד משחק ומגלה רק בסוף שהתוצאה נדחית
+    btn.disabled = true;
+    $('formErr').textContent = '';
+    try {
+      var r = await fetch('../api/class-check', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: student.classCode })
+      });
+      if (!r.ok) {
+        var j = await r.json().catch(function () { return {}; });
+        $('formErr').textContent = j.error || 'קוד כיתה לא תקין';
+        btn.disabled = false;
+        return;
+      }
+    } catch (e) {
+      $('formErr').textContent = 'אין חיבור לשרת. בדוק את החיבור ונסה שוב.';
+      btn.disabled = false;
+      return;
+    }
+    btn.disabled = false;
+    $('formErr').textContent = '';
+    startSession();
+  });
+}
+initIntro();
+</script>
+</body>
+</html>

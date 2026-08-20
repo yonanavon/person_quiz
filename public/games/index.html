@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>אתגרי חשיבה</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f4f8; color: #1a2733; min-height: 100vh; padding: 24px 16px; }
+  .wrap { max-width: 560px; margin: 0 auto; }
+  h1 { text-align: center; margin-bottom: 4px; }
+  .sub { text-align: center; color: #5a6b7b; margin-bottom: 24px; }
+  a.card { display: flex; align-items: center; gap: 14px; background: #fff; border-radius: 12px; padding: 16px 18px; margin-bottom: 12px; text-decoration: none; color: inherit; box-shadow: 0 1px 4px rgba(0,0,0,.08); transition: transform .1s; }
+  a.card:hover { transform: translateY(-2px); }
+  a.card.disabled { opacity: .45; pointer-events: none; }
+  .emoji { font-size: 30px; }
+  .name { font-weight: 700; font-size: 17px; }
+  .desc { color: #5a6b7b; font-size: 14px; }
+  .soon { margin-inline-start: auto; font-size: 12px; background: #eef2f6; border-radius: 20px; padding: 3px 10px; color: #7a8a99; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🎮 אתגרי חשיבה</h1>
+  <p class="sub">חמש תחנות קצרות — כל אחת בערך 2-3 דקות</p>
+  <div id="stations">
+    <a class="card" href="corsi.html" data-station="corsi">
+      <span class="emoji">🔵</span><span><span class="name">זיכרון הקוביות</span><br><span class="desc">זכור את הסדר שבו הריבועים נדלקים</span></span>
+    </a>
+    <a class="card" href="digit-span.html" data-station="digit-span">
+      <span class="emoji">🔢</span><span><span class="name">מספרים הפוכים</span><br><span class="desc">זכור מספרים והקלד אותם בסדר הפוך</span></span>
+    </a>
+    <a class="card" href="symbol-speed.html" data-station="symbol-speed">
+      <span class="emoji">⚡</span><span><span class="name">מהיר וממוקד</span><br><span class="desc">התאם סמלים למספרים — כמה תספיק ב-90 שניות?</span></span>
+    </a>
+    <a class="card" href="go-no-go.html" data-station="go-no-go">
+      <span class="emoji">🚦</span><span><span class="name">עצור וסע</span><br><span class="desc">לחץ מהר — אבל רק כשמותר!</span></span>
+    </a>
+    <a class="card" href="matrix.html" data-station="matrix">
+      <span class="emoji">🧩</span><span><span class="name">חידות צורות</span><br><span class="desc">מצא את הצורה החסרה בתבנית</span></span>
+    </a>
+  </div>
+</div>
+<script>
+  // תחנה שהקובץ שלה עדיין לא קיים מסומנת "בקרוב" — מאפשר לפרוס תחנות בהדרגה
+  document.querySelectorAll('a.card').forEach(async a => {
+    try {
+      const r = await fetch(a.getAttribute('href'), { method: 'HEAD' });
+      if (!r.ok) throw 0;
+    } catch {
+      a.classList.add('disabled');
+      const s = document.createElement('span');
+      s.className = 'soon'; s.textContent = 'בקרוב';
+      a.appendChild(s);
+    }
+  });
+  // העברת שם וקוד כיתה הלאה אם הגיעו בכתובת
+  const qs = location.search;
+  if (qs) document.querySelectorAll('a.card').forEach(a => a.href += qs);
+</script>
+</body>
+</html>

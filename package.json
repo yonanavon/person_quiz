@@ -1,0 +1,17 @@
+{
+  "name": "person-quiz",
+  "version": "1.0.0",
+  "description": "שאלון היכרות ואבחון אישיות לתלמידים",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.112.1",
+    "express": "^4.21.2",
+    "pg": "^8.13.1"
+  }
+}

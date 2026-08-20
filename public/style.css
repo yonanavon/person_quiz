@@ -1,0 +1,203 @@
+@import url('https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;700;900&display=swap');
+
+:root {
+  --bg: #f2f4f8;
+  --card: #ffffff;
+  --ink: #1e2a3a;
+  --muted: #64748b;
+  --primary: #1d5c8f;
+  --primary-dark: #14425f;
+  --accent: #e8a33d;
+  --green: #2e9e6b;
+  --red: #d64545;
+  --yellow: #d9a520;
+  --radius: 16px;
+  --shadow: 0 4px 20px rgba(30, 42, 58, 0.08);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Heebo', system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+  min-height: 100vh;
+  direction: rtl;
+}
+
+.container {
+  max-width: 680px;
+  margin: 0 auto;
+  padding: 24px 16px 60px;
+}
+
+.card {
+  background: var(--card);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 28px;
+  margin-bottom: 16px;
+}
+
+h1 { font-size: 1.7rem; font-weight: 900; color: var(--primary-dark); margin-bottom: 8px; }
+h2 { font-size: 1.3rem; font-weight: 700; color: var(--primary-dark); margin-bottom: 12px; }
+.subtitle { color: var(--muted); margin-bottom: 20px; line-height: 1.6; }
+
+label { display: block; font-weight: 500; margin-bottom: 6px; }
+
+input[type="text"], input[type="password"], textarea {
+  width: 100%;
+  padding: 12px 14px;
+  border: 2px solid #dbe2ec;
+  border-radius: 10px;
+  font-family: inherit;
+  font-size: 1rem;
+  margin-bottom: 16px;
+  transition: border-color .15s;
+}
+input:focus, textarea:focus { outline: none; border-color: var(--primary); }
+textarea { min-height: 110px; resize: vertical; }
+
+.btn {
+  display: inline-block;
+  background: var(--primary);
+  color: #fff;
+  border: none;
+  border-radius: 12px;
+  padding: 13px 32px;
+  font-family: inherit;
+  font-size: 1.05rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background .15s, transform .1s;
+}
+.btn:hover { background: var(--primary-dark); }
+.btn:active { transform: scale(.98); }
+.btn:disabled { background: #b8c4d4; cursor: not-allowed; }
+.btn-ghost { background: transparent; color: var(--muted); font-weight: 500; }
+.btn-ghost:hover { background: #eef1f6; color: var(--ink); }
+
+.error { color: var(--red); font-weight: 500; margin-bottom: 12px; min-height: 1.4em; }
+
+/* פס התקדמות */
+.progress-wrap { margin-bottom: 20px; }
+.progress-bar {
+  height: 10px;
+  background: #dde4ee;
+  border-radius: 99px;
+  overflow: hidden;
+}
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--primary), var(--accent));
+  border-radius: 99px;
+  transition: width .35s ease;
+}
+.progress-text { text-align: center; color: var(--muted); font-size: .85rem; margin-top: 6px; }
+
+/* שאלות */
+.module-badge {
+  display: inline-block;
+  background: #e7effa;
+  color: var(--primary);
+  font-size: .8rem;
+  font-weight: 700;
+  border-radius: 99px;
+  padding: 4px 14px;
+  margin-bottom: 14px;
+}
+.question-text { font-size: 1.25rem; font-weight: 700; line-height: 1.5; margin-bottom: 22px; }
+
+.option {
+  display: block;
+  width: 100%;
+  text-align: right;
+  background: #f7f9fc;
+  border: 2px solid #e2e8f2;
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin-bottom: 10px;
+  font-family: inherit;
+  font-size: 1.02rem;
+  line-height: 1.5;
+  cursor: pointer;
+  transition: all .12s;
+}
+.option:hover { border-color: var(--primary); background: #eef4fb; }
+.option.selected { border-color: var(--primary); background: #e2eefb; font-weight: 700; }
+
+/* ליקרט */
+.likert { display: flex; gap: 8px; flex-direction: column; }
+@media (min-width: 540px) { .likert { flex-direction: row; } .likert .option { flex: 1; text-align: center; font-size: .9rem; padding: 12px 6px; margin-bottom: 0; } }
+
+.nav-row { display: flex; justify-content: space-between; align-items: center; margin-top: 22px; }
+
+/* מסך פתיחה */
+.welcome-icon { font-size: 3.2rem; text-align: center; margin-bottom: 10px; }
+.center { text-align: center; }
+
+/* ---- ממשק מורה ---- */
+table { width: 100%; border-collapse: collapse; font-size: .95rem; }
+th, td { padding: 10px 8px; text-align: right; border-bottom: 1px solid #e6ebf2; }
+th { color: var(--muted); font-weight: 700; font-size: .82rem; }
+tr.clickable { cursor: pointer; }
+tr.clickable:hover { background: #f2f6fc; }
+
+.tag { display: inline-block; border-radius: 99px; padding: 2px 10px; font-size: .78rem; font-weight: 700; }
+.tag-blue { background: #e2eefb; color: var(--primary); }
+.tag-amber { background: #fbf0dc; color: #9c6d12; }
+.tag-red { background: #fbe2e2; color: var(--red); }
+.tag-green { background: #ddf3e8; color: #1d724b; }
+
+.bar-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.bar-label { width: 110px; font-size: .9rem; font-weight: 500; flex-shrink: 0; }
+.bar-track { flex: 1; height: 14px; background: #e8edf4; border-radius: 99px; overflow: hidden; }
+.bar-fill { height: 100%; border-radius: 99px; background: var(--primary); transition: width .4s; }
+.bar-fill.accent { background: var(--accent); }
+.bar-val { width: 46px; font-size: .85rem; color: var(--muted); flex-shrink: 0; }
+
+.axis-row { margin-bottom: 16px; }
+.axis-ends { display: flex; justify-content: space-between; font-size: .82rem; color: var(--muted); margin-bottom: 3px; }
+.axis-track { position: relative; height: 10px; background: #e8edf4; border-radius: 99px; }
+.axis-dot {
+  position: absolute; top: -5px; width: 20px; height: 20px;
+  background: var(--primary); border: 3px solid #fff; border-radius: 50%;
+  box-shadow: 0 1px 5px rgba(0,0,0,.25); transform: translateX(50%);
+}
+
+.flag { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 10px; margin-bottom: 8px; }
+.flag-green { background: #edf9f2; }
+.flag-yellow { background: #fdf6e4; }
+.flag-red { background: #fdeaea; }
+.flag-unknown { background: #f3f5f7; }
+.flag .dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+.flag-green .dot { background: var(--green); }
+.flag-yellow .dot { background: var(--yellow); }
+.flag-red .dot { background: var(--red); }
+.flag-unknown .dot { background: #b8c2cc; }
+
+/* פרופיל יכולות — אתגרי חשיבה */
+.ability-row { border: 1px solid #e6ebf1; border-radius: 10px; padding: 12px 14px; margin-bottom: 10px; }
+.ability-row.not-played { opacity: .55; }
+.ability-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.ability-name { font-weight: 700; }
+.ability-score { font-size: .9rem; color: var(--primary-dark); font-weight: 600; }
+.ability-measures { font-size: .85rem; color: var(--muted); margin-top: 2px; }
+.ability-pct { font-size: .85rem; margin-top: 6px; }
+.ability-pct.muted { color: var(--muted); }
+.ability-note { font-size: .88rem; color: var(--muted); margin-top: 6px; line-height: 1.6; }
+.ability-flag { font-size: .85rem; color: #a86b00; background: #fdf6e4; border-radius: 8px; padding: 6px 10px; margin-top: 8px; }
+.bar-fill.low { background: var(--red); }
+.bar-fill.high { background: var(--green); }
+
+.interp { background: #f7f9fc; border-radius: 10px; padding: 14px 16px; margin-top: 10px; line-height: 1.7; font-size: .95rem; }
+.interp b { color: var(--primary-dark); }
+
+.ai-box { background: #f4f1ff; border: 1px solid #ddd6f5; border-radius: 12px; padding: 18px; line-height: 1.8; white-space: pre-wrap; }
+
+.open-answer { background: #fffbef; border-right: 4px solid var(--accent); border-radius: 8px; padding: 12px 14px; margin-bottom: 10px; }
+.open-answer .q { font-size: .85rem; color: var(--muted); margin-bottom: 4px; }
+
+.topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; }
+.spinner { display: inline-block; width: 18px; height: 18px; border: 3px solid #d5ddf0; border-top-color: var(--primary); border-radius: 50%; animation: spin .8s linear infinite; vertical-align: middle; }
+@keyframes spin { to { transform: rotate(360deg); } }
