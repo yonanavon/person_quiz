@@ -482,7 +482,10 @@ app.get('/api/admin/export.csv', requireAdmin, async (req, res) => {
   res.send('﻿' + [header, ...lines].join('\n'));
 });
 
-app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, 'public', 'admin.html')));
+// גם /admin וגם /admin/ מגישים את אותו דף. הנכסים ב-admin.html מופנים בנתיב מוחלט
+// (/admin.js, /style.css) — בנתיב יחסי הדפדפן היה מחפש אותם תחת /admin/ ומקבל 404,
+// והמורה היה נתקע במסך "טוען..." לבן.
+app.get(['/admin', '/admin/'], (req, res) => res.sendFile(path.join(__dirname, 'public', 'admin.html')));
 
 db.init().then(() => {
   app.listen(PORT, () => console.log(`Server running on port ${PORT} (${db.usePg ? 'Postgres' : 'SQLite'})`));
