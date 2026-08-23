@@ -5,21 +5,43 @@ const usePg = !!process.env.DATABASE_URL;
 let pool = null;
 let sqlite = null;
 
+// זיהוי פריסה: ב-Railway המערכת הקבצים אפמרלית, ולכן SQLite שם אינו אחסון —
+// הוא מחיקה מתוזמנת. RAILWAY_ENVIRONMENT מוזרק אוטומטית על ידי Railway.
+const IS_DEPLOYED = process.env.NODE_ENV === 'production' || !!process.env.RAILWAY_ENVIRONMENT;
+
 if (usePg) {
   const { Pool } = require('pg');
   pool = new Pool({
     connectionString: process.env.DATABASE_URL,
     ssl: process.env.DATABASE_URL.includes('localhost') ? false : { rejectUnauthorized: false },
   });
+  // ל-Pool יש מאזין שגיאות חובה: שגיאה בלקוח סרק (ניתוק רשת, restart של Postgres)
+  // נפלטת כאירוע 'error', ובלי מאזין Node מפיל את התהליך כחריגה לא מטופלת.
+  // הלקוח הפגום מוסר מה-Pool אוטומטית; הבקשה הבאה תפתח חיבור חדש.
+  pool.on('error', (err) => {
+    console.error('שגיאת חיבור ב-Postgres (הלקוח יוחלף אוטומטית):', err.message);
+  });
+} else if (IS_DEPLOYED && process.env.ALLOW_EPHEMERAL_DB !== 'true') {
+  // כישלון מכוון בעלייה. קודם רק הזהרנו — והאזהרה נבלעה בלוג בזמן שהשרת
+  // המשיך להגיש, כך שתוצאות תלמידים נמחקו בשקט בכל דיפלוי. מוטב שהדיפלוי
+  // ייכשל ברעש מאשר שייראה תקין ויאבד נתונים.
+  console.error('='.repeat(70));
+  console.error('שגיאה: רץ בפריסה ללא DATABASE_URL — השרת לא יעלה.');
+  console.error('');
+  console.error('ללא PostgreSQL הנתונים נשמרים ב-SQLite על דיסק אפמרלי,');
+  console.error('וכל דיפלוי או הפעלה מחדש מוחק את כל תוצאות התלמידים.');
+  console.error('');
+  console.error('פתרון ב-Railway:');
+  console.error('  1. + New → Database → PostgreSQL');
+  console.error('  2. בשירות האפליקציה: Variables → Add Variable Reference → DATABASE_URL');
+  console.error('  3. Redeploy');
+  console.error('');
+  console.error('לעקיפה מודעת (נתונים ימחקו!): ALLOW_EPHEMERAL_DB=true');
+  console.error('='.repeat(70));
+  process.exit(1);
 } else {
-  // אזהרה קריטית: ב-Railway המערכת הקבצים אפמרלית — SQLite ללא DATABASE_URL
-  // אומר שכל דיפלוי/restart מוחק את כל תוצאות התלמידים בשקט.
-  if (process.env.NODE_ENV === 'production' || process.env.RAILWAY_ENVIRONMENT) {
-    console.error('='.repeat(70));
-    console.error('אזהרה חמורה: רץ בפרודקשן ללא DATABASE_URL — הנתונים נשמרים ב-SQLite מקומי');
-    console.error('על דיסק אפמרלי. כל דיפלוי או הפעלה מחדש ימחק את כל תוצאות התלמידים!');
-    console.error('פתרון: הוסיפו PostgreSQL ב-Railway וודאו ש-DATABASE_URL משותף לשירות.');
-    console.error('='.repeat(70));
+  if (IS_DEPLOYED) {
+    console.warn('אזהרה: ALLOW_EPHEMERAL_DB=true — הנתונים על דיסק אפמרלי ויימחקו בכל דיפלוי.');
   }
   const { DatabaseSync } = require('node:sqlite');
   const path = process.env.DB_PATH || require('path').join(__dirname, 'data.db');
@@ -81,11 +103,15 @@ async function init() {
   await addColumn('submissions', 'updated_at', 'TIMESTAMP');
 }
 
-// הוספת עמודה אידמפוטנטית — שני המנועים זורקים שגיאה אם העמודה כבר קיימת
+// הוספת עמודה אידמפוטנטית — שני המנועים זורקים שגיאה אם העמודה כבר קיימת.
+// ב-Postgres מזוהה לפי קוד SQLSTATE 42701 (duplicate_column) ולא לפי טקסט ההודעה,
+// שמשתנה בין גרסאות ובין הגדרות שפה בשרת. ב-SQLite אין קודים — שם אין ברירה
+// אלא להתאים טקסט ("duplicate column name").
 async function addColumn(table, column, definition) {
   try {
     await query(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
   } catch (e) {
+    if (usePg && e && e.code === '42701') return;
     const msg = String(e && e.message || '').toLowerCase();
     if (!msg.includes('duplicate') && !msg.includes('already exists')) throw e;
   }
