@@ -34,25 +34,79 @@ if (!process.env.SESSION_SECRET) {
 app.use(express.json({ limit: '200kb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-// ---- אימות מורה: עוגיה חתומה ----
+// ---- אימות: עוגיה חתומה ----
+// שני תפקידים: 'admin' (מנהל המערכת, רואה הכול) ו-'teacher:<classId>' (מורה
+// שרואה אך ורק את הכיתה שלו). התפקיד נשמר בתוך המטען החתום, ולכן לקוח
+// לא יכול לשדרג את עצמו — שינוי המטען פוסל את החתימה.
 function sign(value) {
   return crypto.createHmac('sha256', SESSION_SECRET).update(value).digest('hex');
 }
-function makeToken() {
-  const payload = `admin.${Date.now()}`;
+function makeToken(role = 'admin') {
+  const payload = `${role}.${Date.now()}`;
   return `${payload}.${sign(payload)}`;
 }
-function verifyToken(token) {
-  if (!token) return false;
+// מחזיר { role, classId } או null. classId קיים רק לתפקיד מורה.
+function readToken(token) {
+  if (!token) return null;
   const i = token.lastIndexOf('.');
-  if (i < 0) return false;
+  if (i < 0) return null;
   const payload = token.slice(0, i);
   const sig = token.slice(i + 1);
   const expected = sign(payload);
-  if (sig.length !== expected.length) return false;
-  if (!crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) return false;
-  const ts = Number(payload.split('.')[1]);
-  return Date.now() - ts < 1000 * 60 * 60 * 12; // 12 שעות
+  if (sig.length !== expected.length) return null;
+  if (!crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) return null;
+  const parts = payload.split('.');
+  const ts = Number(parts[parts.length - 1]);
+  if (!(Date.now() - ts < 1000 * 60 * 60 * 12)) return null; // 12 שעות
+  const role = parts[0];
+  if (role === 'admin') return { role: 'admin', classId: null };
+  if (role === 'teacher') {
+    const classId = Number(parts[1]);
+    if (!Number.isInteger(classId)) return null;
+    return { role: 'teacher', classId };
+  }
+  return null;
+}
+function verifyToken(token) {
+  return !!readToken(token);
+}
+
+// ---- סיסמת מורה: scrypt עם salt לכל כיתה ----
+// סיסמאות שמורים בוחרים בעצמם נוטות להיות חלשות וחוזרות על עצמן, ומאחוריהן
+// נתונים רגישים של קטינים. scrypt יקר בכוונה, כך שניחוש בכוח גס אינו כדאי.
+const SCRYPT_PARAMS = { N: 16384, r: 8, p: 1 };
+function hashPassword(password) {
+  const salt = crypto.randomBytes(16).toString('hex');
+  const hash = crypto.scryptSync(password, salt, 64, SCRYPT_PARAMS).toString('hex');
+  return `${salt}$${hash}`;
+}
+function verifyPassword(password, stored) {
+  if (!stored || !stored.includes('$')) return false;
+  const [salt, hash] = stored.split('$');
+  let derived;
+  try {
+    derived = crypto.scryptSync(password, salt, 64, SCRYPT_PARAMS).toString('hex');
+  } catch { return false; }
+  if (derived.length !== hash.length) return false;
+  return crypto.timingSafeEqual(Buffer.from(derived), Buffer.from(hash));
+}
+
+// סף מינימלי לסיסמה שהמורה בוחר. לא מדיניות מורכבת שרק מייצרת פתקים על המסך,
+// אלא חסימת הבחירות הצפויות באמת ("1234", שם הכיתה, קוד הכיתה).
+const WEAK_PASSWORDS = new Set([
+  '12345678', '123456789', '1234567890', 'password', 'qwertyui', 'abcd1234',
+  '11111111', '87654321', 'aaaaaaaa', 'teacher1', '12341234',
+]);
+function passwordProblem(password, classCode) {
+  const pw = (password || '').toString();
+  if (pw.length < 8) return 'הסיסמה חייבת להכיל לפחות 8 תווים';
+  if (pw.length > 200) return 'סיסמה ארוכה מדי';
+  if (WEAK_PASSWORDS.has(pw.toLowerCase())) return 'הסיסמה נפוצה מדי — בחר סיסמה אחרת';
+  if (classCode && pw.trim() === classCode.toString().trim()) {
+    return 'הסיסמה אינה יכולה להיות זהה לקוד הכיתה — התלמידים מכירים אותו';
+  }
+  if (/^(.)\1+$/.test(pw)) return 'הסיסמה חייבת להכיל יותר מתו אחד חוזר';
+  return null;
 }
 // Secure מתווסף רק בפרודקשן — ב-localhost (http) דפדפן מתעלם מעוגייה כזו והמורה לא יוכל להתחבר.
 function cookie(nameValue, maxAgeSeconds) {
@@ -67,9 +121,34 @@ function getCookie(req, name) {
   }
   return null;
 }
+// מנהל בלבד — פעולות על פני כל הכיתות (יצירת כיתות, ניתוח AI, ייצוא מלא).
 function requireAdmin(req, res, next) {
-  if (verifyToken(getCookie(req, 'quiz_admin'))) return next();
-  res.status(401).json({ error: 'נדרשת התחברות' });
+  const auth = readToken(getCookie(req, 'quiz_admin'));
+  if (!auth) return res.status(401).json({ error: 'נדרשת התחברות' });
+  if (auth.role !== 'admin') return res.status(403).json({ error: 'הפעולה מותרת למנהל המערכת בלבד' });
+  req.auth = auth;
+  next();
+}
+
+// מנהל או מורה. כל מטפל שמשתמש בזה חייב לסנן לפי req.auth דרך scopeClause/assertClassAccess,
+// אחרת מורה אחד יראה נתונים של כיתה אחרת.
+function requireTeacher(req, res, next) {
+  const auth = readToken(getCookie(req, 'quiz_admin'));
+  if (!auth) return res.status(401).json({ error: 'נדרשת התחברות' });
+  req.auth = auth;
+  next();
+}
+
+// סינון SQL לפי תפקיד: מנהל מקבל תנאי ריק, מורה מוגבל לכיתה שלו.
+// מחזיר { clause, params } כדי שהמזהה יעבור כפרמטר ולא ישורשר לתוך ה-SQL.
+function scopeClause(auth, column, startIndex = 1) {
+  if (auth.role === 'admin') return { clause: '', params: [] };
+  return { clause: ` AND ${column} = $${startIndex}`, params: [auth.classId] };
+}
+
+// בדיקת גישה לכיתה בודדת. מחזיר true אם מותר.
+function canAccessClass(auth, classId) {
+  return auth.role === 'admin' || auth.classId === Number(classId);
 }
 
 // ---- הגבלת קצב להתחברות ----
@@ -260,10 +339,12 @@ app.post('/api/games/result', async (req, res) => {
   }
 });
 
-app.get('/api/admin/game-results', requireAdmin, async (req, res) => {
+app.get('/api/admin/game-results', requireTeacher, async (req, res) => {
+  const scope = scopeClause(req.auth, 'g.class_id');
   const rows = await db.query(
     `SELECT g.*, c.name AS class_name FROM game_results g
-     LEFT JOIN classes c ON c.id = g.class_id ORDER BY g.created_at DESC`);
+     LEFT JOIN classes c ON c.id = g.class_id
+     WHERE 1=1${scope.clause} ORDER BY g.created_at DESC`, scope.params);
   res.json(rows.map(r => ({
     id: r.id, studentName: r.student_name, className: r.class_name || null,
     station: r.station, metrics: JSON.parse(r.metrics),
@@ -274,6 +355,7 @@ app.get('/api/admin/game-results', requireAdmin, async (req, res) => {
 
 // ---- API למורה ----
 
+// כניסת מנהל המערכת — סיסמה אחת, גישה לכל הכיתות.
 app.post('/api/admin/login', (req, res) => {
   const ip = clientIp(req);
   const failures = recentFailures(ip);
@@ -286,7 +368,101 @@ app.post('/api/admin/login', (req, res) => {
     return res.status(401).json({ error: 'סיסמה שגויה' });
   }
   loginAttempts.delete(ip);
-  res.setHeader('Set-Cookie', cookie(`quiz_admin=${makeToken()}`, 43200));
+  res.setHeader('Set-Cookie', cookie(`quiz_admin=${makeToken('admin')}`, 43200));
+  res.json({ ok: true, role: 'admin' });
+});
+
+// בדיקת מצב כיתה לפני כניסת מורה — האם כבר נקבעה סיסמה.
+// מכוון: אינו חושף אם הקוד קיים כלל, כדי שלא ישמש לגילוי קודי כיתות.
+app.post('/api/teacher/check', async (req, res) => {
+  const ip = clientIp(req);
+  if (recentFailures(ip).length >= LOGIN_MAX_ATTEMPTS) {
+    return res.status(429).json({ error: 'יותר מדי ניסיונות. נסה שוב מאוחר יותר.' });
+  }
+  const code = (req.body.classCode || '').toString().trim();
+  const rows = await db.query(
+    'SELECT id, name, teacher_password FROM classes WHERE code = $1', [code]);
+  if (!rows.length) {
+    recordFailure(ip);
+    return res.status(404).json({ error: 'קוד כיתה לא תקין' });
+  }
+  res.json({ className: rows[0].name, needsSetup: !rows[0].teacher_password });
+});
+
+// כניסת מורה כיתה. בכניסה הראשונה המורה קובע סיסמה (needsSetup), ומאותו רגע
+// היא נדרשת. הסיסמה נשמרת כ-scrypt ולא ניתנת לשחזור — רק המנהל יכול לאפס.
+app.post('/api/teacher/login', async (req, res) => {
+  const ip = clientIp(req);
+  const failures = recentFailures(ip);
+  if (failures.length >= LOGIN_MAX_ATTEMPTS) {
+    const waitMin = Math.ceil((failures[0] + LOGIN_WINDOW_MS - Date.now()) / 60000);
+    return res.status(429).json({ error: `יותר מדי ניסיונות התחברות. נסה שוב בעוד כ-${waitMin} דקות.` });
+  }
+
+  const code = (req.body.classCode || '').toString().trim();
+  const password = (req.body.password || '').toString();
+  const rows = await db.query(
+    'SELECT id, name, code, teacher_password FROM classes WHERE code = $1', [code]);
+  if (!rows.length) {
+    recordFailure(ip);
+    return res.status(401).json({ error: 'קוד כיתה או סיסמה שגויים' });
+  }
+  const cls = rows[0];
+
+  // כניסה ראשונה: קביעת הסיסמה. מוגן בכך שהחלון הזה נסגר לצמיתות אחרי הקביעה —
+  // מי שמגיע ראשון הוא המורה שקיבל את הקוד ממך.
+  if (!cls.teacher_password) {
+    const confirm = (req.body.confirmPassword || '').toString();
+    const problem = passwordProblem(password, cls.code);
+    if (problem) return res.status(400).json({ error: problem, needsSetup: true });
+    if (password !== confirm) {
+      return res.status(400).json({ error: 'הסיסמאות אינן תואמות', needsSetup: true });
+    }
+    const now = db.usePg ? 'NOW()' : "datetime('now')";
+    await db.query(
+      `UPDATE classes SET teacher_password = $1, teacher_password_set_at = ${now} WHERE id = $2`,
+      [hashPassword(password), cls.id]);
+    loginAttempts.delete(ip);
+    res.setHeader('Set-Cookie', cookie(`quiz_admin=${makeToken(`teacher.${cls.id}`)}`, 43200));
+    return res.json({ ok: true, role: 'teacher', className: cls.name });
+  }
+
+  if (!verifyPassword(password, cls.teacher_password)) {
+    recordFailure(ip);
+    return res.status(401).json({ error: 'קוד כיתה או סיסמה שגויים' });
+  }
+  loginAttempts.delete(ip);
+  res.setHeader('Set-Cookie', cookie(`quiz_admin=${makeToken(`teacher.${cls.id}`)}`, 43200));
+  res.json({ ok: true, role: 'teacher', className: cls.name });
+});
+
+// שינוי סיסמה על ידי המורה עצמו (דורש את הסיסמה הנוכחית).
+app.post('/api/teacher/change-password', requireTeacher, async (req, res) => {
+  if (req.auth.role !== 'teacher') {
+    return res.status(400).json({ error: 'למנהל אין סיסמת כיתה לשינוי' });
+  }
+  const rows = await db.query('SELECT id, code, teacher_password FROM classes WHERE id = $1', [req.auth.classId]);
+  if (!rows.length) return res.status(404).json({ error: 'הכיתה לא נמצאה' });
+  const cls = rows[0];
+  const current = (req.body.currentPassword || '').toString();
+  const next = (req.body.newPassword || '').toString();
+  if (!verifyPassword(current, cls.teacher_password)) {
+    return res.status(401).json({ error: 'הסיסמה הנוכחית שגויה' });
+  }
+  const problem = passwordProblem(next, cls.code);
+  if (problem) return res.status(400).json({ error: problem });
+  const now = db.usePg ? 'NOW()' : "datetime('now')";
+  await db.query(
+    `UPDATE classes SET teacher_password = $1, teacher_password_set_at = ${now} WHERE id = $2`,
+    [hashPassword(next), cls.id]);
+  res.json({ ok: true });
+});
+
+// איפוס סיסמת מורה על ידי המנהל — מחזיר את הכיתה למצב "כניסה ראשונה".
+app.post('/api/admin/classes/:id/reset-password', requireAdmin, async (req, res) => {
+  await db.query(
+    'UPDATE classes SET teacher_password = NULL, teacher_password_set_at = NULL WHERE id = $1',
+    [Number(req.params.id)]);
   res.json({ ok: true });
 });
 
@@ -295,16 +471,37 @@ app.post('/api/admin/logout', (req, res) => {
   res.json({ ok: true });
 });
 
-app.get('/api/admin/me', (req, res) => {
-  res.json({ loggedIn: verifyToken(getCookie(req, 'quiz_admin')), aiEnabled: ai.aiEnabled() });
+app.get('/api/admin/me', async (req, res) => {
+  const auth = readToken(getCookie(req, 'quiz_admin'));
+  if (!auth) return res.json({ loggedIn: false, aiEnabled: ai.aiEnabled() });
+  let className = null;
+  if (auth.role === 'teacher') {
+    const rows = await db.query('SELECT name FROM classes WHERE id = $1', [auth.classId]);
+    // הכיתה נמחקה בזמן שהמורה היה מחובר — הסשן כבר לא מצביע לכלום
+    if (!rows.length) return res.json({ loggedIn: false, aiEnabled: ai.aiEnabled() });
+    className = rows[0].name;
+  }
+  res.json({
+    loggedIn: true,
+    role: auth.role,
+    className,
+    // ניתוח AI נצרך ממכסת ה-API של המנהל, ולכן פתוח למנהל בלבד
+    aiEnabled: auth.role === 'admin' && ai.aiEnabled(),
+  });
 });
 
-app.get('/api/admin/classes', requireAdmin, async (req, res) => {
+app.get('/api/admin/classes', requireTeacher, async (req, res) => {
+  const scope = scopeClause(req.auth, 'c.id');
   const rows = await db.query(
-    `SELECT c.id, c.name, c.code, COUNT(s.id) AS submissions
+    `SELECT c.id, c.name, c.code, (c.teacher_password IS NOT NULL) AS has_password,
+            COUNT(s.id) AS submissions
      FROM classes c LEFT JOIN submissions s ON s.class_id = c.id
-     GROUP BY c.id, c.name, c.code ORDER BY c.id`);
-  res.json(rows);
+     WHERE 1=1${scope.clause}
+     GROUP BY c.id, c.name, c.code, c.teacher_password ORDER BY c.id`, scope.params);
+  res.json(rows.map(r => ({
+    id: r.id, name: r.name, code: r.code, submissions: r.submissions,
+    hasPassword: !!r.has_password,
+  })));
 });
 
 app.post('/api/admin/classes', requireAdmin, async (req, res) => {
@@ -319,12 +516,14 @@ app.post('/api/admin/classes', requireAdmin, async (req, res) => {
   }
 });
 
-app.get('/api/admin/submissions', requireAdmin, async (req, res) => {
+app.get('/api/admin/submissions', requireTeacher, async (req, res) => {
+  const scope = scopeClause(req.auth, 's.class_id');
   const rows = await db.query(
     `SELECT s.id, s.student_name, s.duration_seconds, s.created_at, s.profile, s.submitted,
             (s.ai_analysis IS NOT NULL) AS has_ai, c.name AS class_name, c.id AS class_id
      FROM submissions s JOIN classes c ON c.id = s.class_id
-     ORDER BY s.created_at DESC`);
+     WHERE 1=1${scope.clause}
+     ORDER BY s.created_at DESC`, scope.params);
   res.json(rows.map(r => {
     const p = JSON.parse(r.profile);
     return {
@@ -382,12 +581,14 @@ function safeParse(v) {
   try { return JSON.parse(v); } catch { return null; }
 }
 
-app.get('/api/admin/submissions/:id', requireAdmin, async (req, res) => {
+app.get('/api/admin/submissions/:id', requireTeacher, async (req, res) => {
   const rows = await db.query(
     `SELECT s.*, c.name AS class_name FROM submissions s JOIN classes c ON c.id = s.class_id WHERE s.id = $1`,
     [Number(req.params.id)]);
   if (!rows.length) return res.status(404).json({ error: 'לא נמצא' });
   const r = rows[0];
+  // 404 ולא 403 — מורה לא אמור ללמוד מהתשובה שהמזהה קיים בכיתה אחרת
+  if (!canAccessClass(req.auth, r.class_id)) return res.status(404).json({ error: 'לא נמצא' });
   const ability = await abilityProfileFor(r.student_name, r.class_id);
   res.json({
     id: r.id, studentName: r.student_name, className: r.class_name,
@@ -405,7 +606,10 @@ app.get('/api/admin/submissions/:id', requireAdmin, async (req, res) => {
   });
 });
 
-app.delete('/api/admin/submissions/:id', requireAdmin, async (req, res) => {
+app.delete('/api/admin/submissions/:id', requireTeacher, async (req, res) => {
+  const rows = await db.query('SELECT class_id FROM submissions WHERE id = $1', [Number(req.params.id)]);
+  if (!rows.length) return res.status(404).json({ error: 'לא נמצא' });
+  if (!canAccessClass(req.auth, rows[0].class_id)) return res.status(404).json({ error: 'לא נמצא' });
   await db.query('DELETE FROM submissions WHERE id = $1', [Number(req.params.id)]);
   res.json({ ok: true });
 });
@@ -435,7 +639,10 @@ app.post('/api/admin/analyze/:id', requireAdmin, async (req, res) => {
 });
 
 // תצוגת כיתה — התפלגויות
-app.get('/api/admin/class-overview/:classId', requireAdmin, async (req, res) => {
+app.get('/api/admin/class-overview/:classId', requireTeacher, async (req, res) => {
+  if (!canAccessClass(req.auth, req.params.classId)) {
+    return res.status(404).json({ error: 'לא נמצא' });
+  }
   const rows = await db.query(
     'SELECT profile, submitted FROM submissions WHERE class_id = $1', [Number(req.params.classId)]);
   const styleDist = {}; const motivDist = {};
@@ -460,9 +667,11 @@ app.get('/api/admin/class-overview/:classId', requireAdmin, async (req, res) => 
 });
 
 // ייצוא CSV
-app.get('/api/admin/export.csv', requireAdmin, async (req, res) => {
+app.get('/api/admin/export.csv', requireTeacher, async (req, res) => {
+  const scope = scopeClause(req.auth, 's.class_id');
   const rows = await db.query(
-    `SELECT s.*, c.name AS class_name FROM submissions s JOIN classes c ON c.id = s.class_id ORDER BY s.created_at`);
+    `SELECT s.*, c.name AS class_name FROM submissions s JOIN classes c ON c.id = s.class_id
+     WHERE 1=1${scope.clause} ORDER BY s.created_at`, scope.params);
   const esc = v => `"${(v ?? '').toString().replace(/"/g, '""')}"`;
   const header = ['שם', 'כיתה', 'תאריך', 'סטטוס', 'אחוז מילוי', 'סגנון ראשי', 'סגנון משני', 'מנוע 1', 'מנוע 2',
     'מסוגלות', 'התמדה', 'ויסות', 'שייכות', 'עזרה'].map(esc).join(',');

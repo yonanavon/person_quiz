@@ -2,6 +2,9 @@
 
 const app = document.getElementById('app');
 let aiEnabled = false;
+let role = null;          // 'admin' | 'teacher'
+let myClassName = null;   // שם הכיתה כשמחוברים כמורה
+const isAdmin = () => role === 'admin';
 
 // כל טקסט שמקורו בתלמיד (שם, תשובה פתוחה) או במורה (שם כיתה, קוד) חייב לעבור כאן
 // לפני הזרקה ל-innerHTML — אחרת תלמיד שכותב תגית HTML כשם מריץ קוד בדפדפן המורה.
@@ -24,33 +27,130 @@ async function api(url, opts) {
 async function boot() {
   const me = await api('/api/admin/me');
   aiEnabled = me.aiEnabled;
+  role = me.role || null;
+  myClassName = me.className || null;
   if (me.loggedIn) renderDashboard();
   else renderLogin();
 }
 
-function renderLogin() {
+function renderLogin(tab = 'teacher') {
   app.innerHTML = `
-    <div class="card" style="max-width:420px;margin:60px auto;">
+    <div class="card" style="max-width:440px;margin:60px auto;">
       <h1>ממשק מורה</h1>
-      <p class="subtitle">כניסה לצפייה בתוצאות השאלון</p>
-      <label>סיסמה</label>
-      <input type="password" id="pw">
-      <div class="error" id="err"></div>
-      <button class="btn" id="login">כניסה</button>
+      <div class="tabs">
+        <button class="tab ${tab === 'teacher' ? 'active' : ''}" id="tabTeacher">מורה כיתה</button>
+        <button class="tab ${tab === 'admin' ? 'active' : ''}" id="tabAdmin">מנהל המערכת</button>
+      </div>
+      <div id="loginBody"></div>
     </div>`;
+  document.getElementById('tabTeacher').onclick = () => renderLogin('teacher');
+  document.getElementById('tabAdmin').onclick = () => renderLogin('admin');
+  if (tab === 'admin') renderAdminLogin();
+  else renderTeacherLogin();
+}
+
+function renderAdminLogin() {
+  document.getElementById('loginBody').innerHTML = `
+    <p class="subtitle">גישה לכל הכיתות במערכת</p>
+    <label>סיסמת מנהל</label>
+    <input type="password" id="pw">
+    <div class="error" id="err"></div>
+    <button class="btn" id="login">כניסה</button>`;
   const submit = async () => {
     try {
       await api('/api/admin/login', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ password: document.getElementById('pw').value }),
       });
-      renderDashboard();
+      await boot();
     } catch (e) {
       document.getElementById('err').textContent = e.message;
     }
   };
   document.getElementById('login').onclick = submit;
   document.getElementById('pw').onkeydown = e => { if (e.key === 'Enter') submit(); };
+}
+
+// כניסת מורה בשני שלבים: קודם קוד הכיתה, ואז סיסמה קיימת או קביעת סיסמה חדשה.
+// הפיצול נחוץ כי רק אחרי בדיקת הקוד יודעים אם זו כניסה ראשונה.
+function renderTeacherLogin() {
+  document.getElementById('loginBody').innerHTML = `
+    <p class="subtitle">גישה לתוצאות הכיתה שלך בלבד</p>
+    <label>קוד כיתה</label>
+    <input type="text" id="code" autocomplete="off">
+    <div class="error" id="err"></div>
+    <button class="btn" id="next">המשך</button>`;
+
+  const next = async () => {
+    const code = document.getElementById('code').value.trim();
+    const err = document.getElementById('err');
+    err.textContent = '';
+    if (!code) { err.textContent = 'יש להזין קוד כיתה'; return; }
+    try {
+      const info = await api('/api/teacher/check', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ classCode: code }),
+      });
+      if (info.needsSetup) renderTeacherSetup(code, info.className);
+      else renderTeacherPassword(code, info.className);
+    } catch (e) { err.textContent = e.message; }
+  };
+  document.getElementById('next').onclick = next;
+  document.getElementById('code').onkeydown = e => { if (e.key === 'Enter') next(); };
+}
+
+function renderTeacherPassword(code, className) {
+  document.getElementById('loginBody').innerHTML = `
+    <p class="subtitle">כיתה <b>${esc(className)}</b></p>
+    <label>סיסמת מורה</label>
+    <input type="password" id="pw" autocomplete="current-password">
+    <div class="error" id="err"></div>
+    <button class="btn" id="login">כניסה</button>
+    <button class="btn-ghost btn" id="back" style="margin-top:8px;">→ כיתה אחרת</button>`;
+  const submit = async () => {
+    try {
+      await api('/api/teacher/login', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ classCode: code, password: document.getElementById('pw').value }),
+      });
+      await boot();
+    } catch (e) { document.getElementById('err').textContent = e.message; }
+  };
+  document.getElementById('login').onclick = submit;
+  document.getElementById('pw').onkeydown = e => { if (e.key === 'Enter') submit(); };
+  document.getElementById('back').onclick = () => renderTeacherLogin();
+}
+
+function renderTeacherSetup(code, className) {
+  document.getElementById('loginBody').innerHTML = `
+    <p class="subtitle">כיתה <b>${esc(className)}</b> — כניסה ראשונה</p>
+    <div class="interp" style="margin-bottom:12px;">
+      זו הכניסה הראשונה לכיתה זו. בחר סיסמה אישית שתשמש אותך מעכשיו.
+      <b>אל תבחר את קוד הכיתה כסיסמה</b> — התלמידים מכירים אותו.
+    </div>
+    <label>בחר סיסמה (8 תווים לפחות)</label>
+    <input type="password" id="pw" autocomplete="new-password">
+    <label>אימות סיסמה</label>
+    <input type="password" id="pw2" autocomplete="new-password">
+    <div class="error" id="err"></div>
+    <button class="btn" id="login">קביעת סיסמה וכניסה</button>
+    <button class="btn-ghost btn" id="back" style="margin-top:8px;">→ כיתה אחרת</button>`;
+  const submit = async () => {
+    try {
+      await api('/api/teacher/login', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          classCode: code,
+          password: document.getElementById('pw').value,
+          confirmPassword: document.getElementById('pw2').value,
+        }),
+      });
+      await boot();
+    } catch (e) { document.getElementById('err').textContent = e.message; }
+  };
+  document.getElementById('login').onclick = submit;
+  document.getElementById('pw2').onkeydown = e => { if (e.key === 'Enter') submit(); };
+  document.getElementById('back').onclick = () => renderTeacherLogin();
 }
 
 async function renderDashboard() {
@@ -64,7 +164,15 @@ async function renderDashboard() {
       <td><b>${esc(c.name)}</b></td>
       <td><span class="tag tag-blue">${esc(c.code)}</span></td>
       <td>${esc(c.submissions)}</td>
-      <td><button class="btn-ghost btn" data-overview="${esc(c.id)}" data-name="${esc(c.name)}">תמונת כיתה</button></td>
+      ${isAdmin() ? `<td>${c.hasPassword
+        ? '<span class="tag tag-green">סיסמה נקבעה</span>'
+        : '<span class="tag tag-amber">ממתין לכניסה ראשונה</span>'}</td>` : ''}
+      <td>
+        <button class="btn-ghost btn" data-overview="${esc(c.id)}" data-name="${esc(c.name)}">תמונת כיתה</button>
+        ${isAdmin() && c.hasPassword
+          ? `<button class="btn-ghost btn" data-reset="${esc(c.id)}" data-name="${esc(c.name)}">איפוס סיסמה</button>`
+          : ''}
+      </td>
     </tr>`).join('');
 
   const subRows = submissions.map(s => `
@@ -77,27 +185,33 @@ async function renderDashboard() {
       <td>${esc(new Date(s.createdAt).toLocaleDateString('he-IL'))}</td>
     </tr>`).join('');
 
+  const colspan = isAdmin() ? 5 : 4;
   app.innerHTML = `
     <div class="topbar">
-      <h1>ממשק מורה</h1>
+      <h1>${isAdmin() ? 'ממשק מנהל' : `כיתה ${esc(myClassName || '')}`}</h1>
       <div>
         <a class="btn-ghost btn" href="/api/admin/export.csv">⬇ ייצוא CSV</a>
+        ${!isAdmin() ? '<button class="btn-ghost btn" id="changePw">שינוי סיסמה</button>' : ''}
         <button class="btn-ghost btn" id="logout">יציאה</button>
       </div>
     </div>
 
     <div class="card">
-      <h2>כיתות</h2>
+      <h2>${isAdmin() ? 'כיתות' : 'הכיתה שלי'}</h2>
       <table>
-        <thead><tr><th>כיתה</th><th>קוד לתלמידים</th><th>מילאו</th><th></th></tr></thead>
-        <tbody>${classRows || '<tr><td colspan="4">אין עדיין כיתות</td></tr>'}</tbody>
+        <thead><tr><th>כיתה</th><th>קוד לתלמידים</th><th>מילאו</th>${isAdmin() ? '<th>סיסמת מורה</th>' : ''}<th></th></tr></thead>
+        <tbody>${classRows || `<tr><td colspan="${colspan}">אין עדיין כיתות</td></tr>`}</tbody>
       </table>
+      ${isAdmin() ? `
       <div style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;">
         <div style="flex:1;min-width:140px;"><label>שם כיתה</label><input type="text" id="clsName" style="margin-bottom:0;" placeholder='למשל: ז1'></div>
         <div style="flex:1;min-width:140px;"><label>קוד לתלמידים</label><input type="text" id="clsCode" style="margin-bottom:0;" placeholder="למשל: 7134"></div>
         <button class="btn" id="addClass">+ הוספת כיתה</button>
       </div>
       <div class="error" id="clsErr"></div>
+      <p class="subtitle" style="margin-top:12px;">
+        מסרו למורה את <b>קוד הכיתה</b> בלבד. בכניסה הראשונה הוא יקבע לעצמו סיסמה,
+        ומאותו רגע רק הוא ייכנס לתוצאות הכיתה.</p>` : ''}
     </div>
 
     <div class="card">
@@ -114,9 +228,16 @@ async function renderDashboard() {
 
   document.getElementById('logout').onclick = async () => {
     await api('/api/admin/logout', { method: 'POST' });
+    role = null; myClassName = null;
     renderLogin();
   };
-  document.getElementById('addClass').onclick = async () => {
+
+  const changePwBtn = document.getElementById('changePw');
+  if (changePwBtn) changePwBtn.onclick = renderChangePassword;
+
+  // הכפתורים הבאים קיימים רק אצל מנהל — אצל מורה הם אינם ב-DOM כלל
+  const addClassBtn = document.getElementById('addClass');
+  if (addClassBtn) addClassBtn.onclick = async () => {
     const err = document.getElementById('clsErr');
     err.textContent = '';
     try {
@@ -130,12 +251,56 @@ async function renderDashboard() {
       renderDashboard();
     } catch (e) { err.textContent = e.message; }
   };
+
+  app.querySelectorAll('[data-reset]').forEach(btn => {
+    btn.onclick = async () => {
+      const name = btn.dataset.name;
+      if (!confirm(`לאפס את סיסמת המורה של כיתה ${name}?
+
+המורה יתבקש לקבוע סיסמה חדשה בכניסה הבאה.`)) return;
+      await api(`/api/admin/classes/${btn.dataset.reset}/reset-password`, { method: 'POST' });
+      renderDashboard();
+    };
+  });
   app.querySelectorAll('tr.clickable').forEach(tr => {
     tr.onclick = () => renderProfile(tr.dataset.id);
   });
   app.querySelectorAll('[data-overview]').forEach(btn => {
     btn.onclick = () => renderOverview(btn.dataset.overview, btn.dataset.name);
   });
+}
+
+function renderChangePassword() {
+  app.innerHTML = `
+    <div class="card" style="max-width:440px;margin:40px auto;">
+      <h1>שינוי סיסמה</h1>
+      <p class="subtitle">כיתה ${esc(myClassName || '')}</p>
+      <label>סיסמה נוכחית</label>
+      <input type="password" id="cur" autocomplete="current-password">
+      <label>סיסמה חדשה (8 תווים לפחות)</label>
+      <input type="password" id="next" autocomplete="new-password">
+      <div class="error" id="err"></div>
+      <div class="ok" id="ok"></div>
+      <button class="btn" id="save">שמירה</button>
+      <button class="btn-ghost btn" id="back" style="margin-top:8px;">→ חזרה</button>
+    </div>`;
+  document.getElementById('save').onclick = async () => {
+    const err = document.getElementById('err');
+    const ok = document.getElementById('ok');
+    err.textContent = ''; ok.textContent = '';
+    try {
+      await api('/api/teacher/change-password', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          currentPassword: document.getElementById('cur').value,
+          newPassword: document.getElementById('next').value,
+        }),
+      });
+      ok.textContent = 'הסיסמה עודכנה.';
+      setTimeout(renderDashboard, 1200);
+    } catch (e) { err.textContent = e.message; }
+  };
+  document.getElementById('back').onclick = renderDashboard;
 }
 
 async function renderOverview(classId, className) {

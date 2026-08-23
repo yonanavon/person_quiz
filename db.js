@@ -101,6 +101,12 @@ async function init() {
   // ALTER נפרד כדי שמסדי נתונים קיימים ישודרגו בלי לאבד נתונים.
   await addColumn('submissions', 'submitted', 'INTEGER NOT NULL DEFAULT 1');
   await addColumn('submissions', 'updated_at', 'TIMESTAMP');
+
+  // גישת מורה מקצועית לכיתה בודדת. הסיסמה נבחרת על ידי המורה בכניסה הראשונה
+  // ונשמרת כ-scrypt (salt$hash) — לעולם לא כטקסט גלוי.
+  // NULL בעמודה = הכיתה עדיין ממתינה לקביעת סיסמה.
+  await addColumn('classes', 'teacher_password', 'TEXT');
+  await addColumn('classes', 'teacher_password_set_at', 'TIMESTAMP');
 }
 
 // הוספת עמודה אידמפוטנטית — שני המנועים זורקים שגיאה אם העמודה כבר קיימת.

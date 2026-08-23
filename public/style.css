@@ -78,6 +78,31 @@ textarea { min-height: 110px; resize: vertical; }
 .btn-ghost:hover { background: #eef1f6; color: var(--ink); }
 
 .error { color: var(--red); font-weight: 500; margin-bottom: 12px; min-height: 1.4em; }
+.ok { color: var(--green); font-weight: 500; margin-bottom: 12px; min-height: 1.4em; }
+
+/* לשוניות בחירת סוג כניסה (מורה כיתה / מנהל) */
+.tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 18px;
+  border-bottom: 2px solid #e4e9f0;
+}
+.tab {
+  flex: 1;
+  padding: 10px 8px;
+  border: none;
+  background: transparent;
+  font-family: inherit;
+  font-size: 0.98rem;
+  font-weight: 500;
+  color: var(--muted);
+  cursor: pointer;
+  border-bottom: 3px solid transparent;
+  margin-bottom: -2px;
+  transition: color .15s, border-color .15s;
+}
+.tab:hover { color: var(--ink); }
+.tab.active { color: var(--primary); border-bottom-color: var(--primary); font-weight: 700; }
 
 /* פס התקדמות */
 .progress-wrap { margin-bottom: 20px; }
